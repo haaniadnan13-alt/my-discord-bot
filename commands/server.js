@@ -1,202 +1,475 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionsBitField, ActionRowBuilder, ButtonBuilder, ButtonStyle, ChannelType } = require('discord.js');
+const {
+  SlashCommandBuilder,
+  EmbedBuilder,
+  PermissionsBitField,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ChannelType,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder,
+  OverwriteType,
+} = require('discord.js');
 
 if (!global.settings) global.settings = {};
 if (!global.giveaways) global.giveaways = {};
 if (!global.cmdPerms) global.cmdPerms = {};
 
-module.exports = [
-  {
-    data: new SlashCommandBuilder()
-      .setName('welcome')
-      .setDescription('Set a welcome message channel')
-      .addChannelOption(o => o.setName('channel').setDescription('Channel for welcome messages').setRequired(true))
-      .addStringOption(o => o.setName('message').setDescription('Welcome message (use {user} for mention)').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels))
-        return interaction.reply({ content: '❌ You need Manage Channels permission!', ephemeral: true });
-      const channel = interaction.options.getChannel('channel');
-      const message = interaction.options.getString('message');
-      global.settings[interaction.guild.id] = { ...global.settings[interaction.guild.id], welcomeChannel: channel.id, welcomeMessage: message };
-      interaction.reply({ embeds: [new EmbedBuilder().setColor('Green').setTitle('👋 Welcome Message Set!').setDescription(`Welcome messages will be sent in ${channel}!`)] });
+// ─── Permission helper ────────────────────────────────────────────────────────
+function isCommandDisabled(interaction) {
+  const guildPerms = global.cmdPerms[interaction.guild.id];
+  if (!guildPerms) return false;
+  const entry = guildPerms[interaction.commandName];
+  if (!entry) return false;
+  if (entry.disabled) return true;
+  if (entry.requiredRole) {
+    return !interaction.member.roles.cache.has(entry.requiredRole);
+  }
+  return false;
+}
+
+// ─── Server Templates ─────────────────────────────────────────────────────────
+const SERVER_GENRES = {
+  '🎮 Action': {
+    servers: {
+      'Valorant': {
+        description: 'A tactical 5v5 shooter by Riot Games. Master your agents and dominate the competition.',
+        color: 0xFF4655,
+        icon: '🎯',
+        roles: [
+          { name: '🔫 Radiant', color: 0xFF4655, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
+          { name: '⚔️ Immortal', color: 0x9B59B6, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
+          { name: '🛡️ Diamond Mod', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
+          { name: '🔰 Trial Agent', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
+          { name: '💎 Diamond', color: 0x3498DB, hoist: false },
+          { name: '🥇 Platinum', color: 0x1ABC9C, hoist: false },
+          { name: '⭐ Gold', color: 0xF1C40F, hoist: false },
+          { name: '🥈 Silver', color: 0x95A5A6, hoist: false },
+          { name: '🎮 Iron', color: 0x7F8C8D, hoist: false },
+          { name: '✅ Verified Agent', color: 0x2ECC71, hoist: false },
+          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
+        ],
+        modRoleName: '⚔️ Immortal',
+        trialModRoleName: '🔰 Trial Agent',
+        adminRoleName: '🔫 Radiant',
+        everyoneCanView: true,
+        categories: [
+          {
+            name: '📌 INFORMATION',
+            everyoneRead: true,
+            everyoneWrite: false,
+            channels: [
+              { name: '📢・announcements', type: 'text', everyoneWrite: false },
+              { name: '📜・server-rules', type: 'text', everyoneWrite: false },
+              { name: '🔄・valorant-patch-notes', type: 'text', everyoneWrite: false },
+            ]
+          },
+          {
+            name: '🎮 GENERAL',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '💬・valorant-general', type: 'text' },
+              { name: '🎯・clutch-clips', type: 'text' },
+              { name: '📊・rank-showcase', type: 'text' },
+              { name: '🤝・looking-for-5stack', type: 'text' },
+            ]
+          },
+          {
+            name: '🗓️ AGENTS',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '⚡・duelists-chat', type: 'text' },
+              { name: '🛡️・controllers-chat', type: 'text' },
+              { name: '💫・sentinels-chat', type: 'text' },
+              { name: '🔍・initiators-chat', type: 'text' },
+            ]
+          },
+          {
+            name: '🔊 VOICE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🎙️ Spike Rush', type: 'voice' },
+              { name: '🎙️ Competitive Queue', type: 'voice' },
+              { name: '🎮 Unrated Chill', type: 'voice' },
+            ]
+          },
+          {
+            name: '🔒 STAFF ZONE',
+            everyoneRead: false,
+            everyoneWrite: false,
+            modOnly: true,
+            channels: [
+              { name: '🔫・radiant-command', type: 'text' },
+              { name: '⚔️・immortal-mod-chat', type: 'text' },
+              { name: '🔰・trial-agent-lounge', type: 'text' },
+              { name: '📋・moderation-logs', type: 'text' },
+            ]
+          },
+          {
+            name: '🤖 BOTS',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🤖・spike-bot-commands', type: 'text' },
+            ]
+          }
+        ],
+        welcome: '🎯 Welcome to the **Valorant** hub, {user}! Choose your rank role and hop in a game. Remember: **spike is everything.** 💥'
+      },
+      'Fortnite': {
+        description: 'Drop into the island, build your way to victory, and be the last one standing.',
+        color: 0x00D4FF,
+        icon: '⚡',
+        roles: [
+          { name: '👑 Victory Royale', color: 0xFFD700, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
+          { name: '🏆 Champion Squad', color: 0x9B59B6, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
+          { name: '⚡ Storm Mod', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
+          { name: '🔰 Trial Looter', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
+          { name: '💎 Elite Builder', color: 0x3498DB, hoist: false },
+          { name: '⚡ Gold Guerrilla', color: 0xF39C12, hoist: false },
+          { name: '🥈 Silver Soldier', color: 0x95A5A6, hoist: false },
+          { name: '🥉 Bronze Dropper', color: 0xCD6133, hoist: false },
+          { name: '🎮 Open League', color: 0x7F8C8D, hoist: false },
+          { name: '✅ Verified Islander', color: 0x2ECC71, hoist: false },
+          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
+        ],
+        modRoleName: '🏆 Champion Squad',
+        trialModRoleName: '🔰 Trial Looter',
+        adminRoleName: '👑 Victory Royale',
+        everyoneCanView: true,
+        categories: [
+          {
+            name: '📌 INFORMATION',
+            everyoneRead: true,
+            everyoneWrite: false,
+            channels: [
+              { name: '📢・battle-bus-announcements', type: 'text', everyoneWrite: false },
+              { name: '📜・island-rules', type: 'text', everyoneWrite: false },
+              { name: '🔄・fortnite-updates', type: 'text', everyoneWrite: false },
+            ]
+          },
+          {
+            name: '🏝️ THE ISLAND',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '💬・island-general', type: 'text' },
+              { name: '🎬・victory-royale-clips', type: 'text' },
+              { name: '🏆・win-leaderboard', type: 'text' },
+              { name: '🤝・squad-finder', type: 'text' },
+            ]
+          },
+          {
+            name: '⚡ COMPETITIVE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🏆・fncs-discussion', type: 'text' },
+              { name: '📊・stats-tracker', type: 'text' },
+              { name: '🎯・scrims-zone', type: 'text' },
+            ]
+          },
+          {
+            name: '🔊 VOICE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🎙️ Squad Drop', type: 'voice' },
+              { name: '🎙️ Build Practice', type: 'voice' },
+              { name: '🎮 Zero Build Lobby', type: 'voice' },
+            ]
+          },
+          {
+            name: '🔒 STORM CIRCLE STAFF',
+            everyoneRead: false,
+            everyoneWrite: false,
+            modOnly: true,
+            channels: [
+              { name: '👑・royale-command', type: 'text' },
+              { name: '🏆・champion-mod-chat', type: 'text' },
+              { name: '🔰・trial-looter-lounge', type: 'text' },
+              { name: '📋・staff-action-logs', type: 'text' },
+            ]
+          },
+          {
+            name: '🤖 BOTS',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🤖・bus-bot-commands', type: 'text' },
+            ]
+          }
+        ],
+        welcome: '⚡ Welcome to the **Fortnite** hub, {user}! The Battle Bus is boarding. Grab your pickaxe and lets get that Victory Royale! 🏆'
+      },
+      'Call of Duty': {
+        description: 'The iconic military shooter. Dominate in Warzone and multiplayer.',
+        color: 0x3A3A3A,
+        icon: '🔫',
+        roles: [
+          { name: '🎖️ General of the Army', color: 0xFFD700, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
+          { name: '⭐ Field Commander', color: 0xE74C3C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
+          { name: '🪖 Sergeant Mod', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
+          { name: '🔰 Trial Recruit', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
+          { name: '💎 Prestige Master', color: 0x9B59B6, hoist: false },
+          { name: '🥇 Legend Rank', color: 0xF1C40F, hoist: false },
+          { name: '🥈 Veteran Soldier', color: 0x95A5A6, hoist: false },
+          { name: '🥉 Private', color: 0xCD6133, hoist: false },
+          { name: '🎮 Fresh Recruit', color: 0x7F8C8D, hoist: false },
+          { name: '✅ Verified Soldier', color: 0x2ECC71, hoist: false },
+          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
+        ],
+        modRoleName: '⭐ Field Commander',
+        trialModRoleName: '🔰 Trial Recruit',
+        adminRoleName: '🎖️ General of the Army',
+        everyoneCanView: true,
+        categories: [
+          {
+            name: '📌 INFORMATION',
+            everyoneRead: true,
+            everyoneWrite: false,
+            channels: [
+              { name: '📢・command-announcements', type: 'text' },
+              { name: '📜・rules-of-engagement', type: 'text' },
+              { name: '🔄・cod-updates', type: 'text' },
+            ]
+          },
+          {
+            name: '🔫 WARZONE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '💬・warzone-general', type: 'text' },
+              { name: '🎬・killstreak-clips', type: 'text' },
+              { name: '🤝・squad-up', type: 'text' },
+              { name: '🎮・loadout-builder', type: 'text' },
+            ]
+          },
+          {
+            name: '💥 MULTIPLAYER',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🗺️・map-strategies', type: 'text' },
+              { name: '🏆・ranked-wins', type: 'text' },
+              { name: '🎯・meta-loadouts', type: 'text' },
+            ]
+          },
+          {
+            name: '🔊 VOICE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🎙️ Squad Alpha', type: 'voice' },
+              { name: '🎙️ Squad Bravo', type: 'voice' },
+              { name: '🎮 Casual Lobby', type: 'voice' },
+            ]
+          },
+          {
+            name: '🔒 COMMAND CENTER',
+            everyoneRead: false,
+            everyoneWrite: false,
+            modOnly: true,
+            channels: [
+              { name: '🎖️・general-orders', type: 'text' },
+              { name: '⭐・commander-mod-chat', type: 'text' },
+              { name: '🔰・trial-recruit-briefing', type: 'text' },
+              { name: '📋・action-reports', type: 'text' },
+            ]
+          },
+          {
+            name: '🤖 BOTS',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🤖・killbot-commands', type: 'text' },
+            ]
+          }
+        ],
+        welcome: '🔫 Welcome to the **Call of Duty** server, {user}! Report for duty soldier. Pick your loadout and join a squad! 🎖️'
+      },
+      'Marvel Rivals': {
+        description: 'Team-based action where Marvel heroes and villains clash in epic battles.',
+        color: 0xE23636,
+        icon: '🦸',
+        roles: [
+          { name: '⭐ Celestial One', color: 0xFFD700, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
+          { name: '💎 Diamond Avenger', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
+          { name: '🛡️ Shield Mod', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
+          { name: '🔰 Trial Sidekick', color: 0xE74C3C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
+          { name: '🏆 Platinum Hero', color: 0x1ABC9C, hoist: false },
+          { name: '🥇 Gold Guardian', color: 0xF1C40F, hoist: false },
+          { name: '🥈 Silver Striker', color: 0x95A5A6, hoist: false },
+          { name: '🥉 Bronze Brawler', color: 0xCD6133, hoist: false },
+          { name: '🦸 Rookie Hero', color: 0xE23636, hoist: false },
+          { name: '✅ Verified Hero', color: 0x2ECC71, hoist: false },
+          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
+        ],
+        modRoleName: '💎 Diamond Avenger',
+        trialModRoleName: '🔰 Trial Sidekick',
+        adminRoleName: '⭐ Celestial One',
+        everyoneCanView: true,
+        categories: [
+          {
+            name: '📌 INFORMATION',
+            everyoneRead: true,
+            everyoneWrite: false,
+            channels: [
+              { name: '📢・avengers-announcements', type: 'text' },
+              { name: '📜・hero-code-of-conduct', type: 'text' },
+              { name: '🔄・rivals-patch-notes', type: 'text' },
+            ]
+          },
+          {
+            name: '🦸 HERO HQ',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '💬・rivals-general', type: 'text' },
+              { name: '🎬・hero-highlight-reel', type: 'text' },
+              { name: '🦸・hero-tier-list', type: 'text' },
+              { name: '🤝・team-assembler', type: 'text' },
+            ]
+          },
+          {
+            name: '⚔️ RANKED',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '📊・rank-showcase', type: 'text' },
+              { name: '🎯・team-compositions', type: 'text' },
+              { name: '🏆・tournament-zone', type: 'text' },
+            ]
+          },
+          {
+            name: '🔊 VOICE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🎙️ Team Alpha', type: 'voice' },
+              { name: '🎙️ Team Omega', type: 'voice' },
+              { name: '🎮 Casual Brawl', type: 'voice' },
+            ]
+          },
+          {
+            name: '🔒 SHIELD HEADQUARTERS',
+            everyoneRead: false,
+            everyoneWrite: false,
+            modOnly: true,
+            channels: [
+              { name: '⭐・celestial-command', type: 'text' },
+              { name: '💎・avenger-mod-chat', type: 'text' },
+              { name: '🔰・trial-sidekick-briefing', type: 'text' },
+              { name: '📋・hero-action-logs', type: 'text' },
+            ]
+          },
+          {
+            name: '🤖 BOTS',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🤖・jarvis-commands', type: 'text' },
+            ]
+          }
+        ],
+        welcome: '🦸 Welcome to **Marvel Rivals**, {user}! Assemble your team and show the multiverse who\'s the strongest hero! ⚡'
+      }
     }
   },
-  {
-    data: new SlashCommandBuilder()
-      .setName('goodbye')
-      .setDescription('Set a goodbye message channel')
-      .addChannelOption(o => o.setName('channel').setDescription('Channel for goodbye messages').setRequired(true))
-      .addStringOption(o => o.setName('message').setDescription('Goodbye message (use {user} for username)').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageChannels))
-        return interaction.reply({ content: '❌ You need Manage Channels permission!', ephemeral: true });
-      const channel = interaction.options.getChannel('channel');
-      const message = interaction.options.getString('message');
-      global.settings[interaction.guild.id] = { ...global.settings[interaction.guild.id], goodbyeChannel: channel.id, goodbyeMessage: message };
-      interaction.reply({ embeds: [new EmbedBuilder().setColor('Red').setTitle('👋 Goodbye Message Set!').setDescription(`Goodbye messages will be sent in ${channel}!`)] });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('autorole')
-      .setDescription('Set a role to give new members automatically')
-      .addRoleOption(o => o.setName('role').setDescription('Role to assign').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles))
-        return interaction.reply({ content: '❌ You need Manage Roles permission!', ephemeral: true });
-      const role = interaction.options.getRole('role');
-      global.settings[interaction.guild.id] = { ...global.settings[interaction.guild.id], autorole: role.id };
-      interaction.reply({ embeds: [new EmbedBuilder().setColor('Green').setTitle('✅ Autorole Set!').setDescription(`New members will receive the **${role.name}** role!`)] });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('verify')
-      .setDescription('Set up a verification system')
-      .addRoleOption(o => o.setName('role').setDescription('Role to give after verification').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles))
-        return interaction.reply({ content: '❌ You need Manage Roles permission!', ephemeral: true });
-      const role = interaction.options.getRole('role');
-      global.settings[interaction.guild.id] = { ...global.settings[interaction.guild.id], verifyRole: role.id };
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('verify_button').setLabel('✅ Verify').setStyle(ButtonStyle.Success)
-      );
-      await interaction.channel.send({ embeds: [new EmbedBuilder().setColor('Green').setTitle('✅ Verification').setDescription('Click the button below to verify yourself!')], components: [row] });
-      interaction.reply({ content: '✅ Verification set up!', ephemeral: true });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('ticket')
-      .setDescription('Create a support ticket'),
-    async execute(interaction) {
-      const existing = interaction.guild.channels.cache.find(c => c.name === `ticket-${interaction.user.username.toLowerCase()}`);
-      if (existing) return interaction.reply({ content: '❌ You already have an open ticket!', ephemeral: true });
-      const channel = await interaction.guild.channels.create({
-        name: `ticket-${interaction.user.username}`,
-        type: ChannelType.GuildText,
-        permissionOverwrites: [
-          { id: interaction.guild.roles.everyone, deny: [PermissionsBitField.Flags.ViewChannel] },
-          { id: interaction.user.id, allow: [PermissionsBitField.Flags.ViewChannel, PermissionsBitField.Flags.SendMessages] }
-        ]
-      });
-      const row = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('close_ticket').setLabel('🔒 Close Ticket').setStyle(ButtonStyle.Danger)
-      );
-      await channel.send({ embeds: [new EmbedBuilder().setColor('Blue').setTitle('🎫 Support Ticket').setDescription(`Welcome <@${interaction.user.id}>! Describe your issue and staff will help you shortly.`)], components: [row] });
-      interaction.reply({ content: `✅ Ticket created: ${channel}`, ephemeral: true });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('close')
-      .setDescription('Close a ticket channel'),
-    async execute(interaction) {
-      if (!interaction.channel.name.startsWith('ticket-'))
-        return interaction.reply({ content: '❌ This is not a ticket channel!', ephemeral: true });
-      await interaction.reply({ content: '🔒 Closing ticket in 5 seconds...' });
-      setTimeout(() => interaction.channel.delete(), 5000);
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('announce')
-      .setDescription('Send an announcement')
-      .addChannelOption(o => o.setName('channel').setDescription('Channel to announce in').setRequired(true))
-      .addStringOption(o => o.setName('message').setDescription('Announcement message').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages))
-        return interaction.reply({ content: '❌ You need Manage Messages permission!', ephemeral: true });
-      const channel = interaction.options.getChannel('channel');
-      const message = interaction.options.getString('message');
-      await channel.send({ embeds: [new EmbedBuilder().setColor('Gold').setTitle('📢 Announcement').setDescription(message).setFooter({ text: `Announced by ${interaction.user.tag}` })] });
-      interaction.reply({ content: '✅ Announcement sent!', ephemeral: true });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('poll')
-      .setDescription('Create a poll')
-      .addStringOption(o => o.setName('question').setDescription('Poll question').setRequired(true))
-      .addStringOption(o => o.setName('option1').setDescription('Option 1').setRequired(true))
-      .addStringOption(o => o.setName('option2').setDescription('Option 2').setRequired(true))
-      .addStringOption(o => o.setName('option3').setDescription('Option 3'))
-      .addStringOption(o => o.setName('option4').setDescription('Option 4')),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages))
-        return interaction.reply({ content: '❌ You need Manage Messages permission!', ephemeral: true });
-      const question = interaction.options.getString('question');
-      const options = [
-        interaction.options.getString('option1'),
-        interaction.options.getString('option2'),
-        interaction.options.getString('option3'),
-        interaction.options.getString('option4'),
-      ].filter(Boolean);
-      const emojis = ['1️⃣', '2️⃣', '3️⃣', '4️⃣'];
-      const description = options.map((o, i) => `${emojis[i]} ${o}`).join('\n');
-      const poll = await interaction.channel.send({ embeds: [new EmbedBuilder().setColor('Blue').setTitle(`📊 ${question}`).setDescription(description)] });
-      for (let i = 0; i < options.length; i++) await poll.react(emojis[i]);
-      interaction.reply({ content: '✅ Poll created!', ephemeral: true });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('suggest')
-      .setDescription('Submit a suggestion')
-      .addStringOption(o => o.setName('suggestion').setDescription('Your suggestion').setRequired(true)),
-    async execute(interaction) {
-      const suggestion = interaction.options.getString('suggestion');
-      const channel = interaction.guild.channels.cache.find(c => c.name === 'suggestions') || interaction.channel;
-      const msg = await channel.send({ embeds: [new EmbedBuilder().setColor('Blue').setTitle('💡 New Suggestion').setDescription(suggestion).setFooter({ text: `Suggested by ${interaction.user.tag}` })] });
-      await msg.react('👍');
-      await msg.react('👎');
-      interaction.reply({ content: '✅ Suggestion submitted!', ephemeral: true });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('reactionrole')
-      .setDescription('Set up a reaction role')
-      .addStringOption(o => o.setName('message_id').setDescription('Message ID to add reaction role to').setRequired(true))
-      .addStringOption(o => o.setName('emoji').setDescription('Emoji to react with').setRequired(true))
-      .addRoleOption(o => o.setName('role').setDescription('Role to assign').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageRoles))
-        return interaction.reply({ content: '❌ You need Manage Roles permission!', ephemeral: true });
-      const messageId = interaction.options.getString('message_id');
-      const emoji = interaction.options.getString('emoji');
-      const role = interaction.options.getRole('role');
-      const msg = await interaction.channel.messages.fetch(messageId);
-      if (!msg) return interaction.reply({ content: '❌ Message not found!', ephemeral: true });
-      await msg.react(emoji);
-      if (!global.reactionRoles) global.reactionRoles = {};
-      global.reactionRoles[`${messageId}-${emoji}`] = role.id;
-      interaction.reply({ content: `✅ Reaction role set! React with ${emoji} to get **${role.name}**!`, ephemeral: true });
-    }
-  },
-  {
-    data: new SlashCommandBuilder()
-      .setName('giveaway')
-      .setDescription('Start a giveaway')
-      .addStringOption(o => o.setName('prize').setDescription('Giveaway prize').setRequired(true))
-      .addStringOption(o => o.setName('duration').setDescription('Duration e.g. 1h, 1d').setRequired(true)),
-    async execute(interaction) {
-      if (!interaction.member.permissions.has(PermissionsBitField.Flags.ManageMessages))
-        return interaction.reply({ content: '❌ You need Manage Messages permission!', ephemeral: true });
-      const prize = interaction.options.getString('prize');
-      const duration = interaction.options.getString('duration');
-      const ms = require('ms');
-      const time = ms(duration);
-      if (!time) return interaction.reply({ content: '❌ Invalid duration!', ephemeral: true });
-      const ends = new Date(Date.now() + time);
-      const msg = await interaction.channel.send({ embeds: [new EmbedBuilder().setColor('Gold').setTitle('🎉 Giveaway!').setDescription(`**Prize:** ${prize}\n**Ends:** <t:${Math.floor(ends.getTime() / 1000)}:R>\n\nReact with 🎉 to enter!`)] });
-      await msg.react('🎉');
-      global.giveaways[msg.id] = { prize, channelId: interaction.channel.id, ends };
-      interaction.reply({ content: '✅ Giveaway started!', ephemeral: true });
-      setTimeout(async () => {
-        const updated = await msg.fetch();
-        const reaction = updated.reactions.cache.get('🎉');
-        const users = await reaction.users.fetch();
-        const entries = users.filter(u => !u.bot);
-        if (entries.size === 0) return interaction.channel.send('❌ No one entered the giveaway!');
-        const win
+  '🎲 Casual': {
+    servers: {
+      'Minecraft': {
+        description: 'Build, survive, and explore in the ultimate sandbox world.',
+        color: 0x5D8A1E,
+        icon: '⛏️',
+        roles: [
+          { name: '💎 Herobrine', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
+          { name: '🌿 Creeper Boss', color: 0x27AE60, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
+          { name: '🔴 Redstone Mod', color: 0xE74C3C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
+          { name: '🔰 Trial Miner', color: 0xF1C40F, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
+          { name: '🥇 Diamond Miner', color: 0x3498DB, hoist: false },
+          { name: '🔵 Lapis Scholar', color: 0x2980B9, hoist: false },
+          { name: '🌿 Emerald Trader', color: 0x27AE60, hoist: false },
+          { name: '⛏️ Iron Pickaxe', color: 0x5D8A1E, hoist: false },
+          { name: '🪵 Wood Axe', color: 0xCD6133, hoist: false },
+          { name: '✅ Verified Crafter', color: 0x2ECC71, hoist: false },
+          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
+        ],
+        modRoleName: '🌿 Creeper Boss',
+        trialModRoleName: '🔰 Trial Miner',
+        adminRoleName: '💎 Herobrine',
+        everyoneCanView: true,
+        categories: [
+          {
+            name: '📌 INFORMATION',
+            everyoneRead: true,
+            everyoneWrite: false,
+            channels: [
+              { name: '📢・spawn-announcements', type: 'text' },
+              { name: '📜・server-rules', type: 'text' },
+              { name: '🌐・server-ip-info', type: 'text' },
+            ]
+          },
+          {
+            name: '⛏️ THE OVERWORLD',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '💬・overworld-chat', type: 'text' },
+              { name: '🏗️・build-showcase', type: 'text' },
+              { name: '🔴・redstone-engineering', type: 'text' },
+              { name: '🌿・farm-designs', type: 'text' },
+              { name: '🤝・smp-finder', type: 'text' },
+            ]
+          },
+          {
+            name: '🌍 SURVIVAL',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🏡・base-tours', type: 'text' },
+              { name: '🗺️・seed-drops', type: 'text' },
+            ]
+          },
+          {
+            name: '🔊 VOICE',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '⛏️ Mining Crew', type: 'voice' },
+              { name: '🏗️ Build Session', type: 'voice' },
+              { name: '🎮 SMP Hangout', type: 'voice' },
+            ]
+          },
+          {
+            name: '🔒 NETHER FORTRESS STAFF',
+            everyoneRead: false,
+            everyoneWrite: false,
+            modOnly: true,
+            channels: [
+              { name: '💎・herobrine-orders', type: 'text' },
+              { name: '🌿・creeper-mod-chat', type: 'text' },
+              { name: '🔰・trial-miner-den', type: 'text' },
+              { name: '📋・ban-hammer-logs', type: 'text' },
+            ]
+          },
+          {
+            name: '🤖 BOTS',
+            everyoneRead: true,
+            everyoneWrite: true,
+            channels: [
+              { name: '🤖・crafting-bot-commands', type: 'text' },
+            ]
+          }
+        ],
+        welcome: '⛏️ Welcome to the **Minecraft** server, {user}! Grab your pickaxe, punch a tree, and let\'s build something amazing! 🌍'
+      },
+      'Among Us': {
+        description: 'Find the impostors — or be one. Social deduction at its finest.',
+        color: 0xC51111,
+        icon: '🔴',
+        roles: [
+          { name: '👾 Polus Admin', color: 0xC51111, hoist: true, permissions: Pe
