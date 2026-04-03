@@ -397,79 +397,144 @@ const SERVER_GENRES = {
           { name: '🪵 Wood Axe', color: 0xCD6133, hoist: false },
           { name: '✅ Verified Crafter', color: 0x2ECC71, hoist: false },
           { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
-        ],
-        modRoleName: '🌿 Creeper Boss',
-        trialModRoleName: '🔰 Trial Miner',
-        adminRoleName: '💎 Herobrine',
-        everyoneCanView: true,
-        categories: [
-          {
-            name: '📌 INFORMATION',
-            everyoneRead: true,
-            everyoneWrite: false,
-            channels: [
-              { name: '📢・spawn-announcements', type: 'text' },
-              { name: '📜・server-rules', type: 'text' },
-              { name: '🌐・server-ip-info', type: 'text' },
-            ]
-          },
-          {
-            name: '⛏️ THE OVERWORLD',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '💬・overworld-chat', type: 'text' },
-              { name: '🏗️・build-showcase', type: 'text' },
-              { name: '🔴・redstone-engineering', type: 'text' },
-              { name: '🌿・farm-designs', type: 'text' },
-              { name: '🤝・smp-finder', type: 'text' },
-            ]
-          },
-          {
-            name: '🌍 SURVIVAL',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🏡・base-tours', type: 'text' },
-              { name: '🗺️・seed-drops', type: 'text' },
-            ]
-          },
-          {
-            name: '🔊 VOICE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '⛏️ Mining Crew', type: 'voice' },
-              { name: '🏗️ Build Session', type: 'voice' },
-              { name: '🎮 SMP Hangout', type: 'voice' },
-            ]
-          },
-          {
-            name: '🔒 NETHER FORTRESS STAFF',
-            everyoneRead: false,
-            everyoneWrite: false,
-            modOnly: true,
-            channels: [
-              { name: '💎・herobrine-orders', type: 'text' },
-              { name: '🌿・creeper-mod-chat', type: 'text' },
-              { name: '🔰・trial-miner-den', type: 'text' },
-              { name: '📋・ban-hammer-logs', type: 'text' },
-            ]
-          },
-          {
-            name: '🤖 BOTS',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🤖・crafting-bot-commands', type: 'text' },
-            ]
-          }
-        ],
-        welcome: '⛏️ Welcome to the **Minecraft** server, {user}! Grab your pickaxe, punch a tree, and let\'s build something amazing! 🌍'
-      },
-      'Among Us': {
-        description: 'Find the impostors — or be one. Social deduction at its finest.',
-        color: 0xC51111,
-        icon: '🔴',
-        roles: [
-          { name: '👾 Polus Admin', color: 0xC51111, hoist: true, permissions: Pe
+        ], 
+modRoleName: '🌿 Creeper Boss', 
+trialModRoleName: '🔰 Trial Miner', 
+adminRoleName: '💎 Herobrine', 
+everyoneCanView: true, 
+categories: [
+  {
+    name: '📌 INFORMATION',
+    everyoneRead: true,
+    everyoneWrite: false,
+    channels: [
+      { name: '📢・spawn-announcements', type: 'text' },
+      { name: '📜・server-rules', type: 'text' },
+      { name: '🌐・server-ip-info', type: 'text' },
+    ]
+  },
+  {
+    name: '⛏️ THE OVERWORLD',
+    everyoneRead: true,
+    everyoneWrite: true,
+    channels: [
+      { name: '💬・overworld-chat', type: 'text' },
+      { name: '🏗️・build-showcase', type: 'text' },
+      { name: '🔴・redstone-engineering', type: 'text' },
+      { name: '🌿・farm-designs', type: 'text' },
+      { name: '🤝・smp-finder', type: 'text' },
+    ]
+  },
+  {
+    name: '🌍 SURVIVAL',
+    everyoneRead: true,
+    everyoneWrite: true,
+    channels: [
+      { name: '🏡・base-tours', type: 'text' },
+      { name: '🗺️・seed-drops', type: 'text' },
+    ]
+  },
+  {
+    name: '🔊 VOICE',
+    everyoneRead: true,
+    everyoneWrite: true,
+    channels: [
+      { name: '⛏️ Mining Crew', type: 'voice' },
+      { name: '🏗️ Build Session', type: 'voice' },
+      { name: '🎮 SMP Hangout', type: 'voice' },
+    ]
+  },
+  {
+    name: '🔒 NETHER FORTRESS STAFF',
+    everyoneRead: false,
+    everyoneWrite: false,
+    modOnly: true,
+    channels: [
+      { name: '💎・herobrine-orders', type: 'text' },
+      { name: '🌿・creeper-mod-chat', type: 'text' },
+      { name: '🔰・trial-miner-den', type: 'text' },
+      { name: '📋・ban-hammer-logs', type: 'text' },
+    ]
+  },
+  {
+    name: '🤖 BOTS',
+    everyoneRead: true,
+    everyoneWrite: true,
+    channels: [
+      { name: '🤖・crafting-bot-commands', type: 'text' },
+    ]
+  }
+],
+welcome: '⛏️ Welcome to the **Minecraft** server, {user}! Grab your pickaxe, punch a tree, and let\'s build something amazing! 🌍'
+},
+
+// --- Among Us Server ---
+'Among Us': {
+  description: 'Find the impostors — or be one. Social deduction at its finest.',
+  color: 0xC51111,
+  icon: '🔴',
+  roles: [
+    { 
+      name: '👾 Polus Admin',
+      color: 0xC51111,
+      hoist: true,
+      permissions: PermissionsBitField.Flags.Administrator
+    },
+    { 
+      name: '🛡️ Head Impostor',
+      color: 0x8B0000,
+      hoist: true,
+      permissions: PermissionsBitField.Flags.ManageGuild
+    },
+    { 
+      name: '🔰 Trial Crewmate',
+      color: 0xFF6B6B,
+      hoist: false,
+      permissions: []
+    }
+  ],
+  modRoleName: '🛡️ Head Impostor',
+  trialModRoleName: '🔰 Trial Crewmate',
+  adminRoleName: '👾 Polus Admin',
+  everyoneCanView: true,
+  categories: [
+    {
+      name: '📌 INFORMATION',
+      everyoneRead: true,
+      everyoneWrite: false,
+      channels: [
+        { name: '📢・announcements', type: 'text' },
+        { name: '📜・rules', type: 'text' }
+      ]
+    },
+    {
+      name: '💬 GENERAL',
+      everyoneRead: true,
+      everyoneWrite: true,
+      channels: [
+        { name: '💬・general', type: 'text' },
+        { name: '🧠・sus-discussion', type: 'text' }
+      ]
+    },
+    {
+      name: '🔊 VOICE',
+      everyoneRead: true,
+      everyoneWrite: true,
+      channels: [
+        { name: '🔴 Emergency Meeting', type: 'voice' },
+        { name: '👨‍🚀 Crewmates VC', type: 'voice' }
+      ]
+    },
+    {
+      name: '🔒 STAFF',
+      everyoneRead: false,
+      everyoneWrite: false,
+      modOnly: true,
+      channels: [
+        { name: '📋・mod-chat', type: 'text' },
+        { name: '🚨・reports', type: 'text' }
+      ]
+    }
+  ],
+  welcome: '🔴 Welcome to the **Among Us** server, {user}! Stay sus... or don’t. 👀'
+},
