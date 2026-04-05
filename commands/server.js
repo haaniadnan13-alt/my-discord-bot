@@ -258,6 +258,3 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     autoCreateVC(newState.channel, newState.channel.parentId);
   }
 });
-
-// ---------- LOGIN ----------
-client.login(1489201262129057822);
