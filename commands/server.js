@@ -167,8 +167,7 @@ permissionOverwrites: channel.permissionOverwrites.cache.map(po => po)
 // ==============================
 
 client.once("ready", async () => {
-console.log(${client.user.tag} is online!);
-
+console.log(`${client.user.tag} is online!`);
 const guild = client.guilds.cache.first(); // assumes bot is in one server
 
 // ---------- CREATE ROLES ----------
