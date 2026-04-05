@@ -155,7 +155,7 @@ const voiceCategories = [
 const autoCreateVC = async (channel, category) => {
 if(channel.members.size >= 5){ // max 5 per VC
 const newVC = await channel.guild.channels.create({
-name: ${channel.name} 2,
+name: `${channel.name} 2`,
 type: 2, // Voice
 parent: category,
 permissionOverwrites: channel.permissionOverwrites.cache.map(po => po)
