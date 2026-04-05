@@ -20,7 +20,7 @@ let commandMap = new Map();
 const commandFiles = ['moderation', 'utility', 'fun', 'server'];
 for (const file of commandFiles) {
   const imported = require(`./commands/${file}`);
-  const commands = Array.isArray(imported) ? imported : [];
+  const commands = Array.isArray(imported) ? imported : (imported.data ? [imported] : []);
   for (const cmd of commands) {
     if (cmd.data && cmd.execute) {
       allCommands.push(cmd.data.toJSON());
