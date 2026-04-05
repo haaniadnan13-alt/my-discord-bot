@@ -279,7 +279,7 @@ const rest = new REST({ version: '9' }).setToken(TOKEN);
   try {
     console.log("Started refreshing application (/) commands.");
     await rest.put(
-      Routes.applicationCommands(client.user?.id || "YOUR_CLIENT_ID"),
+      Routes.applicationCommands(client.user?.id || "1489201262129057822"),
       { body: commands }
     );
     console.log("Successfully reloaded application (/) commands.");
