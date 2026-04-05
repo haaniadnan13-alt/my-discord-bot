@@ -258,3 +258,112 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
     autoCreateVC(newState.channel, newState.channel.parentId);
   }
 });
+// ==============================
+// Part 4 - /createserver Command
+// ==============================
+
+const { REST } = require("@discordjs/rest");
+const { Routes } = require("discord-api-types/v9");
+const { SlashCommandBuilder } = require("@discordjs/builders");
+
+// Define the /createserver command
+const commands = [
+  new SlashCommandBuilder()
+    .setName("createserver")
+    .setDescription("Run the full server setup (roles, channels, categories, logs)")
+].map(cmd => cmd.toJSON());
+
+// Register the slash command (once)
+const rest = new REST({ version: '9' }).setToken(TOKEN);
+(async () => {
+  try {
+    console.log("Started refreshing application (/) commands.");
+    await rest.put(
+      Routes.applicationCommands(client.user?.id || "YOUR_CLIENT_ID"),
+      { body: commands }
+    );
+    console.log("Successfully reloaded application (/) commands.");
+  } catch (err) {
+    console.error(err);
+  }
+})();
+
+// Handle the slash command
+client.on("interactionCreate", async interaction => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === "createserver") {
+    await interaction.deferReply({ ephemeral: true });
+
+    const guild = interaction.guild;
+
+    try {
+      // ---------- CREATE ROLES ----------
+      for (const r of roles) {
+        if (!guild.roles.cache.find(role => role.name === r.name)) {
+          await guild.roles.create({
+            name: r.name,
+            permissions: r.perms,
+            reason: "Auto-created by mega bot",
+          });
+        }
+      }
+
+      // ---------- CREATE CATEGORIES ----------
+      for (const c of categories) {
+        if (!guild.channels.cache.find(ch => ch.name === c.name && ch.type === 4)) {
+          await guild.channels.create({
+            name: c.name,
+            type: 4, // category
+            permissionOverwrites: [
+              {
+                id: guild.roles.everyone.id,
+                allow: c.perms,
+              },
+            ],
+          });
+        }
+      }
+
+      // ---------- CREATE TEXT CHANNELS ----------
+      for (const t of textChannels) {
+        const cat = guild.channels.cache.find(ch => ch.name === t.category && ch.type === 4);
+        if (!guild.channels.cache.find(ch => ch.name === t.name && ch.type === 0)) {
+          await guild.channels.create({
+            name: t.name,
+            type: 0, // text
+            parent: cat,
+            topic: t.desc,
+            permissionOverwrites: [
+              {
+                id: guild.roles.everyone.id,
+                allow: t.perms,
+              },
+            ],
+          });
+        }
+      }
+
+      // ---------- CREATE VOICE CHANNELS ----------
+      for (const v of voiceCategories) {
+        if (!guild.channels.cache.find(ch => ch.name === v.name && ch.type === 2)) {
+          await guild.channels.create({
+            name: v.name,
+            type: 2, // voice
+            permissionOverwrites: [
+              {
+                id: guild.roles.everyone.id,
+                allow: v.perms,
+              },
+            ],
+          });
+        }
+      }
+
+      await interaction.editReply("✅ Full server setup complete!");
+    } catch (err) {
+      console.error(err);
+      await interaction.editReply("❌ Error running server setup. Check console.");
+    }
+  }
+});
