@@ -1,540 +1,263 @@
-const {
-  SlashCommandBuilder,
-  EmbedBuilder,
-  PermissionsBitField,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  ChannelType,
-  StringSelectMenuBuilder,
-  StringSelectMenuOptionBuilder,
-  OverwriteType,
-} = require('discord.js');
+// ==============================
+// Mega Discord Server Setup Bot
+// Part 1
+// ==============================
 
-if (!global.settings) global.settings = {};
-if (!global.giveaways) global.giveaways = {};
-if (!global.cmdPerms) global.cmdPerms = {};
-
-// ─── Permission helper ────────────────────────────────────────────────────────
-function isCommandDisabled(interaction) {
-  const guildPerms = global.cmdPerms[interaction.guild.id];
-  if (!guildPerms) return false;
-  const entry = guildPerms[interaction.commandName];
-  if (!entry) return false;
-  if (entry.disabled) return true;
-  if (entry.requiredRole) {
-    return !interaction.member.roles.cache.has(entry.requiredRole);
-  }
-  return false;
-}
-
-// ─── Server Templates ─────────────────────────────────────────────────────────
-const SERVER_GENRES = {
-  '🎮 Action': {
-    servers: {
-      'Valorant': {
-        description: 'A tactical 5v5 shooter by Riot Games. Master your agents and dominate the competition.',
-        color: 0xFF4655,
-        icon: '🎯',
-        roles: [
-          { name: '🔫 Radiant', color: 0xFF4655, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
-          { name: '⚔️ Immortal', color: 0x9B59B6, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
-          { name: '🛡️ Diamond Mod', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
-          { name: '🔰 Trial Agent', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
-          { name: '💎 Diamond', color: 0x3498DB, hoist: false },
-          { name: '🥇 Platinum', color: 0x1ABC9C, hoist: false },
-          { name: '⭐ Gold', color: 0xF1C40F, hoist: false },
-          { name: '🥈 Silver', color: 0x95A5A6, hoist: false },
-          { name: '🎮 Iron', color: 0x7F8C8D, hoist: false },
-          { name: '✅ Verified Agent', color: 0x2ECC71, hoist: false },
-          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
-        ],
-        modRoleName: '⚔️ Immortal',
-        trialModRoleName: '🔰 Trial Agent',
-        adminRoleName: '🔫 Radiant',
-        everyoneCanView: true,
-        categories: [
-          {
-            name: '📌 INFORMATION',
-            everyoneRead: true,
-            everyoneWrite: false,
-            channels: [
-              { name: '📢・announcements', type: 'text', everyoneWrite: false },
-              { name: '📜・server-rules', type: 'text', everyoneWrite: false },
-              { name: '🔄・valorant-patch-notes', type: 'text', everyoneWrite: false },
-            ]
-          },
-          {
-            name: '🎮 GENERAL',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '💬・valorant-general', type: 'text' },
-              { name: '🎯・clutch-clips', type: 'text' },
-              { name: '📊・rank-showcase', type: 'text' },
-              { name: '🤝・looking-for-5stack', type: 'text' },
-            ]
-          },
-          {
-            name: '🗓️ AGENTS',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '⚡・duelists-chat', type: 'text' },
-              { name: '🛡️・controllers-chat', type: 'text' },
-              { name: '💫・sentinels-chat', type: 'text' },
-              { name: '🔍・initiators-chat', type: 'text' },
-            ]
-          },
-          {
-            name: '🔊 VOICE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🎙️ Spike Rush', type: 'voice' },
-              { name: '🎙️ Competitive Queue', type: 'voice' },
-              { name: '🎮 Unrated Chill', type: 'voice' },
-            ]
-          },
-          {
-            name: '🔒 STAFF ZONE',
-            everyoneRead: false,
-            everyoneWrite: false,
-            modOnly: true,
-            channels: [
-              { name: '🔫・radiant-command', type: 'text' },
-              { name: '⚔️・immortal-mod-chat', type: 'text' },
-              { name: '🔰・trial-agent-lounge', type: 'text' },
-              { name: '📋・moderation-logs', type: 'text' },
-            ]
-          },
-          {
-            name: '🤖 BOTS',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🤖・spike-bot-commands', type: 'text' },
-            ]
-          }
-        ],
-        welcome: '🎯 Welcome to the **Valorant** hub, {user}! Choose your rank role and hop in a game. Remember: **spike is everything.** 💥'
-      },
-      'Fortnite': {
-        description: 'Drop into the island, build your way to victory, and be the last one standing.',
-        color: 0x00D4FF,
-        icon: '⚡',
-        roles: [
-          { name: '👑 Victory Royale', color: 0xFFD700, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
-          { name: '🏆 Champion Squad', color: 0x9B59B6, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
-          { name: '⚡ Storm Mod', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
-          { name: '🔰 Trial Looter', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
-          { name: '💎 Elite Builder', color: 0x3498DB, hoist: false },
-          { name: '⚡ Gold Guerrilla', color: 0xF39C12, hoist: false },
-          { name: '🥈 Silver Soldier', color: 0x95A5A6, hoist: false },
-          { name: '🥉 Bronze Dropper', color: 0xCD6133, hoist: false },
-          { name: '🎮 Open League', color: 0x7F8C8D, hoist: false },
-          { name: '✅ Verified Islander', color: 0x2ECC71, hoist: false },
-          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
-        ],
-        modRoleName: '🏆 Champion Squad',
-        trialModRoleName: '🔰 Trial Looter',
-        adminRoleName: '👑 Victory Royale',
-        everyoneCanView: true,
-        categories: [
-          {
-            name: '📌 INFORMATION',
-            everyoneRead: true,
-            everyoneWrite: false,
-            channels: [
-              { name: '📢・battle-bus-announcements', type: 'text', everyoneWrite: false },
-              { name: '📜・island-rules', type: 'text', everyoneWrite: false },
-              { name: '🔄・fortnite-updates', type: 'text', everyoneWrite: false },
-            ]
-          },
-          {
-            name: '🏝️ THE ISLAND',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '💬・island-general', type: 'text' },
-              { name: '🎬・victory-royale-clips', type: 'text' },
-              { name: '🏆・win-leaderboard', type: 'text' },
-              { name: '🤝・squad-finder', type: 'text' },
-            ]
-          },
-          {
-            name: '⚡ COMPETITIVE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🏆・fncs-discussion', type: 'text' },
-              { name: '📊・stats-tracker', type: 'text' },
-              { name: '🎯・scrims-zone', type: 'text' },
-            ]
-          },
-          {
-            name: '🔊 VOICE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🎙️ Squad Drop', type: 'voice' },
-              { name: '🎙️ Build Practice', type: 'voice' },
-              { name: '🎮 Zero Build Lobby', type: 'voice' },
-            ]
-          },
-          {
-            name: '🔒 STORM CIRCLE STAFF',
-            everyoneRead: false,
-            everyoneWrite: false,
-            modOnly: true,
-            channels: [
-              { name: '👑・royale-command', type: 'text' },
-              { name: '🏆・champion-mod-chat', type: 'text' },
-              { name: '🔰・trial-looter-lounge', type: 'text' },
-              { name: '📋・staff-action-logs', type: 'text' },
-            ]
-          },
-          {
-            name: '🤖 BOTS',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🤖・bus-bot-commands', type: 'text' },
-            ]
-          }
-        ],
-        welcome: '⚡ Welcome to the **Fortnite** hub, {user}! The Battle Bus is boarding. Grab your pickaxe and lets get that Victory Royale! 🏆'
-      },
-      'Call of Duty': {
-        description: 'The iconic military shooter. Dominate in Warzone and multiplayer.',
-        color: 0x3A3A3A,
-        icon: '🔫',
-        roles: [
-          { name: '🎖️ General of the Army', color: 0xFFD700, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
-          { name: '⭐ Field Commander', color: 0xE74C3C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
-          { name: '🪖 Sergeant Mod', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
-          { name: '🔰 Trial Recruit', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
-          { name: '💎 Prestige Master', color: 0x9B59B6, hoist: false },
-          { name: '🥇 Legend Rank', color: 0xF1C40F, hoist: false },
-          { name: '🥈 Veteran Soldier', color: 0x95A5A6, hoist: false },
-          { name: '🥉 Private', color: 0xCD6133, hoist: false },
-          { name: '🎮 Fresh Recruit', color: 0x7F8C8D, hoist: false },
-          { name: '✅ Verified Soldier', color: 0x2ECC71, hoist: false },
-          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
-        ],
-        modRoleName: '⭐ Field Commander',
-        trialModRoleName: '🔰 Trial Recruit',
-        adminRoleName: '🎖️ General of the Army',
-        everyoneCanView: true,
-        categories: [
-          {
-            name: '📌 INFORMATION',
-            everyoneRead: true,
-            everyoneWrite: false,
-            channels: [
-              { name: '📢・command-announcements', type: 'text' },
-              { name: '📜・rules-of-engagement', type: 'text' },
-              { name: '🔄・cod-updates', type: 'text' },
-            ]
-          },
-          {
-            name: '🔫 WARZONE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '💬・warzone-general', type: 'text' },
-              { name: '🎬・killstreak-clips', type: 'text' },
-              { name: '🤝・squad-up', type: 'text' },
-              { name: '🎮・loadout-builder', type: 'text' },
-            ]
-          },
-          {
-            name: '💥 MULTIPLAYER',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🗺️・map-strategies', type: 'text' },
-              { name: '🏆・ranked-wins', type: 'text' },
-              { name: '🎯・meta-loadouts', type: 'text' },
-            ]
-          },
-          {
-            name: '🔊 VOICE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🎙️ Squad Alpha', type: 'voice' },
-              { name: '🎙️ Squad Bravo', type: 'voice' },
-              { name: '🎮 Casual Lobby', type: 'voice' },
-            ]
-          },
-          {
-            name: '🔒 COMMAND CENTER',
-            everyoneRead: false,
-            everyoneWrite: false,
-            modOnly: true,
-            channels: [
-              { name: '🎖️・general-orders', type: 'text' },
-              { name: '⭐・commander-mod-chat', type: 'text' },
-              { name: '🔰・trial-recruit-briefing', type: 'text' },
-              { name: '📋・action-reports', type: 'text' },
-            ]
-          },
-          {
-            name: '🤖 BOTS',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🤖・killbot-commands', type: 'text' },
-            ]
-          }
-        ],
-        welcome: '🔫 Welcome to the **Call of Duty** server, {user}! Report for duty soldier. Pick your loadout and join a squad! 🎖️'
-      },
-      'Marvel Rivals': {
-        description: 'Team-based action where Marvel heroes and villains clash in epic battles.',
-        color: 0xE23636,
-        icon: '🦸',
-        roles: [
-          { name: '⭐ Celestial One', color: 0xFFD700, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
-          { name: '💎 Diamond Avenger', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
-          { name: '🛡️ Shield Mod', color: 0x1ABC9C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
-          { name: '🔰 Trial Sidekick', color: 0xE74C3C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
-          { name: '🏆 Platinum Hero', color: 0x1ABC9C, hoist: false },
-          { name: '🥇 Gold Guardian', color: 0xF1C40F, hoist: false },
-          { name: '🥈 Silver Striker', color: 0x95A5A6, hoist: false },
-          { name: '🥉 Bronze Brawler', color: 0xCD6133, hoist: false },
-          { name: '🦸 Rookie Hero', color: 0xE23636, hoist: false },
-          { name: '✅ Verified Hero', color: 0x2ECC71, hoist: false },
-          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
-        ],
-        modRoleName: '💎 Diamond Avenger',
-        trialModRoleName: '🔰 Trial Sidekick',
-        adminRoleName: '⭐ Celestial One',
-        everyoneCanView: true,
-        categories: [
-          {
-            name: '📌 INFORMATION',
-            everyoneRead: true,
-            everyoneWrite: false,
-            channels: [
-              { name: '📢・avengers-announcements', type: 'text' },
-              { name: '📜・hero-code-of-conduct', type: 'text' },
-              { name: '🔄・rivals-patch-notes', type: 'text' },
-            ]
-          },
-          {
-            name: '🦸 HERO HQ',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '💬・rivals-general', type: 'text' },
-              { name: '🎬・hero-highlight-reel', type: 'text' },
-              { name: '🦸・hero-tier-list', type: 'text' },
-              { name: '🤝・team-assembler', type: 'text' },
-            ]
-          },
-          {
-            name: '⚔️ RANKED',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '📊・rank-showcase', type: 'text' },
-              { name: '🎯・team-compositions', type: 'text' },
-              { name: '🏆・tournament-zone', type: 'text' },
-            ]
-          },
-          {
-            name: '🔊 VOICE',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🎙️ Team Alpha', type: 'voice' },
-              { name: '🎙️ Team Omega', type: 'voice' },
-              { name: '🎮 Casual Brawl', type: 'voice' },
-            ]
-          },
-          {
-            name: '🔒 SHIELD HEADQUARTERS',
-            everyoneRead: false,
-            everyoneWrite: false,
-            modOnly: true,
-            channels: [
-              { name: '⭐・celestial-command', type: 'text' },
-              { name: '💎・avenger-mod-chat', type: 'text' },
-              { name: '🔰・trial-sidekick-briefing', type: 'text' },
-              { name: '📋・hero-action-logs', type: 'text' },
-            ]
-          },
-          {
-            name: '🤖 BOTS',
-            everyoneRead: true,
-            everyoneWrite: true,
-            channels: [
-              { name: '🤖・jarvis-commands', type: 'text' },
-            ]
-          }
-        ],
-        welcome: '🦸 Welcome to **Marvel Rivals**, {user}! Assemble your team and show the multiverse who\'s the strongest hero! ⚡'
-      }
-    }
-  },
-  '🎲 Casual': {
-    servers: {
-      'Minecraft': {
-        description: 'Build, survive, and explore in the ultimate sandbox world.',
-        color: 0x5D8A1E,
-        icon: '⛏️',
-        roles: [
-          { name: '💎 Herobrine', color: 0x3498DB, hoist: true, permissions: PermissionsBitField.Flags.Administrator },
-          { name: '🌿 Creeper Boss', color: 0x27AE60, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.KickMembers | PermissionsBitField.Flags.BanMembers },
-          { name: '🔴 Redstone Mod', color: 0xE74C3C, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages | PermissionsBitField.Flags.MuteMembers },
-          { name: '🔰 Trial Miner', color: 0xF1C40F, hoist: true, permissions: PermissionsBitField.Flags.ManageMessages },
-          { name: '🥇 Diamond Miner', color: 0x3498DB, hoist: false },
-          { name: '🔵 Lapis Scholar', color: 0x2980B9, hoist: false },
-          { name: '🌿 Emerald Trader', color: 0x27AE60, hoist: false },
-          { name: '⛏️ Iron Pickaxe', color: 0x5D8A1E, hoist: false },
-          { name: '🪵 Wood Axe', color: 0xCD6133, hoist: false },
-          { name: '✅ Verified Crafter', color: 0x2ECC71, hoist: false },
-          { name: '🤖 Bot', color: 0x2C3E50, hoist: false },
-        ], 
-modRoleName: '🌿 Creeper Boss', 
-trialModRoleName: '🔰 Trial Miner', 
-adminRoleName: '💎 Herobrine', 
-everyoneCanView: true, 
-categories: [
-  {
-    name: '📌 INFORMATION',
-    everyoneRead: true,
-    everyoneWrite: false,
-    channels: [
-      { name: '📢・spawn-announcements', type: 'text' },
-      { name: '📜・server-rules', type: 'text' },
-      { name: '🌐・server-ip-info', type: 'text' },
-    ]
-  },
-  {
-    name: '⛏️ THE OVERWORLD',
-    everyoneRead: true,
-    everyoneWrite: true,
-    channels: [
-      { name: '💬・overworld-chat', type: 'text' },
-      { name: '🏗️・build-showcase', type: 'text' },
-      { name: '🔴・redstone-engineering', type: 'text' },
-      { name: '🌿・farm-designs', type: 'text' },
-      { name: '🤝・smp-finder', type: 'text' },
-    ]
-  },
-  {
-    name: '🌍 SURVIVAL',
-    everyoneRead: true,
-    everyoneWrite: true,
-    channels: [
-      { name: '🏡・base-tours', type: 'text' },
-      { name: '🗺️・seed-drops', type: 'text' },
-    ]
-  },
-  {
-    name: '🔊 VOICE',
-    everyoneRead: true,
-    everyoneWrite: true,
-    channels: [
-      { name: '⛏️ Mining Crew', type: 'voice' },
-      { name: '🏗️ Build Session', type: 'voice' },
-      { name: '🎮 SMP Hangout', type: 'voice' },
-    ]
-  },
-  {
-    name: '🔒 NETHER FORTRESS STAFF',
-    everyoneRead: false,
-    everyoneWrite: false,
-    modOnly: true,
-    channels: [
-      { name: '💎・herobrine-orders', type: 'text' },
-      { name: '🌿・creeper-mod-chat', type: 'text' },
-      { name: '🔰・trial-miner-den', type: 'text' },
-      { name: '📋・ban-hammer-logs', type: 'text' },
-    ]
-  },
-  {
-    name: '🤖 BOTS',
-    everyoneRead: true,
-    everyoneWrite: true,
-    channels: [
-      { name: '🤖・crafting-bot-commands', type: 'text' },
-    ]
-  }
-],
-welcome: '⛏️ Welcome to the **Minecraft** server, {user}! Grab your pickaxe, punch a tree, and let\'s build something amazing! 🌍'
-},
-
-// --- Among Us Server ---
-'Among Us': {
-  description: 'Find the impostors — or be one. Social deduction at its finest.',
-  color: 0xC51111,
-  icon: '🔴',
-  roles: [
-    { 
-      name: '👾 Polus Admin',
-      color: 0xC51111,
-      hoist: true,
-      permissions: PermissionsBitField.Flags.Administrator
-    },
-    { 
-      name: '🛡️ Head Impostor',
-      color: 0x8B0000,
-      hoist: true,
-      permissions: PermissionsBitField.Flags.ManageGuild
-    },
-    { 
-      name: '🔰 Trial Crewmate',
-      color: 0xFF6B6B,
-      hoist: false,
-      permissions: []
-    }
+const { Client, GatewayIntentBits, PermissionsBitField } = require("discord.js");
+const client = new Client({
+  intents: [
+    GatewayIntentBits.Guilds,
+    GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildMessages,
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildVoiceStates,
   ],
-  modRoleName: '🛡️ Head Impostor',
-  trialModRoleName: '🔰 Trial Crewmate',
-  adminRoleName: '👾 Polus Admin',
-  everyoneCanView: true,
-  categories: [
-    {
-      name: '📌 INFORMATION',
-      everyoneRead: true,
-      everyoneWrite: false,
-      channels: [
-        { name: '📢・announcements', type: 'text' },
-        { name: '📜・rules', type: 'text' }
-      ]
-    },
-    {
-      name: '💬 GENERAL',
-      everyoneRead: true,
-      everyoneWrite: true,
-      channels: [
-        { name: '💬・general', type: 'text' },
-        { name: '🧠・sus-discussion', type: 'text' }
-      ]
-    },
-    {
-      name: '🔊 VOICE',
-      everyoneRead: true,
-      everyoneWrite: true,
-      channels: [
-        { name: '🔴 Emergency Meeting', type: 'voice' },
-        { name: '👨‍🚀 Crewmates VC', type: 'voice' }
-      ]
-    },
-    {
-      name: '🔒 STAFF',
-      everyoneRead: false,
-      everyoneWrite: false,
-      modOnly: true,
-      channels: [
-        { name: '📋・mod-chat', type: 'text' },
-        { name: '🚨・reports', type: 'text' }
-      ]
+});
+
+// Permission shortcuts
+const R = PermissionsBitField.Flags;
+
+// ------------------------------
+// CONFIG - BOT TOKEN
+// ------------------------------
+const TOKEN = "MTQ4OTQ5Nzc1MzUyMzMyNzA0Nw.GdmSPR.5Jy4Iiq7qLn8lPgYaLngtsxJ4BmaBMTQ4OTQ5Nzc1MzUyMzMyNzA0Nw.GdmSPR.5Jy4Iiq7qLn8lPgYaLngtsxJ4BmaB6O3-42Kp06O3-42Kp0";
+
+// ------------------------------
+// SERVER STRUCTURE DATA
+// ------------------------------
+
+const roles = [
+  // Staff Roles
+  { name: "👑 Owner", perms: [R.Administrator] },
+  { name: "🛡️ Co-Owner", perms: [R.Administrator] },
+  { name: "🔧 Server Manager", perms: [R.ManageChannels, R.ManageRoles, R.KickMembers] },
+  { name: "⚙️ Admin", perms: [R.ManageChannels, R.KickMembers, R.BanMembers] },
+  { name: "🧪 Moderator", perms: [R.KickMembers, R.ManageMessages] },
+  { name: "🧹 Helper", perms: [R.ManageMessages] },
+  { name: "🎫 Support Team", perms: [R.SendMessages, R.ViewChannel] },
+  { name: "📢 Event Manager", perms: [R.ManageChannels, R.ManageMessages] },
+  { name: "🎥 Content Manager", perms: [R.ManageChannels, R.ManageMessages] },
+
+  // Member Roles
+  { name: "👤 Member", perms: [R.ViewChannel, R.SendMessages] },
+
+  // Content Creator Role
+  { name: "🎬 Content Creator", perms: [R.SendMessages, R.AttachFiles] },
+];
+
+// Example: Rocket League ranks
+const rlRanks = [
+  { name: "Bronze I", emoji: "🥉" },
+  { name: "Bronze II", emoji: "🥉" },
+  { name: "Bronze III", emoji: "🥉" },
+  { name: "Silver I", emoji: "🥈" },
+  { name: "Silver II", emoji: "🥈" },
+  { name: "Silver III", emoji: "🥈" },
+  { name: "Gold I", emoji: "🥇" },
+  { name: "Gold II", emoji: "🥇" },
+  { name: "Gold III", emoji: "🥇" },
+  { name: "Platinum I", emoji: "✨" },
+  { name: "Platinum II", emoji: "✨" },
+  { name: "Platinum III", emoji: "✨" },
+  { name: "Diamond I", emoji: "💎" },
+  { name: "Diamond II", emoji: "💎" },
+  { name: "Diamond III", emoji: "💎" },
+  { name: "Champion I", emoji: "🏆" },
+  { name: "Champion II", emoji: "🏆" },
+  { name: "Champion III", emoji: "🏆" },
+  { name: "SSL", emoji: "🚀" },
+];
+
+// Example categories
+const categories = [
+  { name: "💬 Community", desc: "Chat with other members", perms: [R.ViewChannel] },
+  { name: "🎮 Rocket League", desc: "Game-specific channels", perms: [R.ViewChannel] },
+  { name: "📢 Announcements", desc: "Staff-only announcements", perms: [R.ViewChannel] },
+  { name: "🎥 Creators", desc: "Content creators post here", perms: [R.ViewChannel] },
+  { name: "🛠️ Staff", desc: "Staff-only channels", perms: [R.ViewChannel] },
+  { name: "📊 Logs", desc: "Hidden logs from members", perms: [R.ViewChannel] },
+  { name: "🔊 Voice Channels", desc: "Join voice chats", perms: [R.ViewChannel] },
+];
+
+// Text channels
+const textChannels = [
+  { name: "rules", category: "💬 Community", desc: "Read-only server rules", perms: [R.ViewChannel] },
+  { name: "general", category: "💬 Community", desc: "Chat with everyone", perms: [R.ViewChannel, R.SendMessages] },
+  { name: "announcements", category: "📢 Announcements", desc: "Official announcements", perms: [R.ViewChannel] },
+  { name: "creator-uploads", category: "🎥 Creators", desc: "Content creator uploads", perms: [R.ViewChannel, R.SendMessages] },
+  { name: "event-chat", category: "🎮 Rocket League", desc: "Event discussions", perms: [R.ViewChannel, R.SendMessages] },
+];
+// ==============================
+// Part 2 - Extended Roles, Game Ranks, Voice Channels
+// ==============================
+
+// COD Ranks
+const codRanks = [
+  { name: "Recruit", emoji: "🥉" },
+  { name: "Soldier I", emoji: "🥉" },
+  { name: "Soldier II", emoji: "🥉" },
+  { name: "Veteran I", emoji: "🥈" },
+  { name: "Veteran II", emoji: "🥈" },
+  { name: "Elite", emoji: "🥇" },
+  { name: "Champion", emoji: "✨" },
+  { name: "Top 500", emoji: "💎" },
+];
+
+// Fortnite Ranks
+const fortniteRanks = [
+  { name: "Bronze I", emoji: "🥉" },
+  { name: "Bronze II", emoji: "🥉" },
+  { name: "Bronze III", emoji: "🥉" },
+  { name: "Silver I", emoji: "🥈" },
+  { name: "Silver II", emoji: "🥈" },
+  { name: "Silver III", emoji: "🥈" },
+  { name: "Gold I", emoji: "🥇" },
+  { name: "Gold II", emoji: "🥇" },
+  { name: "Gold III", emoji: "🥇" },
+  { name: "Platinum I", emoji: "✨" },
+  { name: "Platinum II", emoji: "✨" },
+  { name: "Platinum III", emoji: "✨" },
+  { name: "Diamond", emoji: "💎" },
+  { name: "Elite", emoji: "🏆" },
+  { name: "Champion", emoji: "🚀" },
+  { name: "Unreal", emoji: "🚀" },
+];
+
+// Apex Legends Ranks
+const apexRanks = [
+  { name: "Rookie", emoji: "🥉" },
+  { name: "Bronze", emoji: "🥉" },
+  { name: "Silver", emoji: "🥈" },
+  { name: "Gold", emoji: "🥇" },
+  { name: "Platinum", emoji: "✨" },
+  { name: "Diamond", emoji: "💎" },
+  { name: "Master", emoji: "🏆" },
+  { name: "Predator", emoji: "🚀" },
+];
+
+// Minecraft Extended Roles
+const mcRoles = [
+  { name: "🛠️ Builder", perms: [R.ManageChannels, R.SendMessages] },
+  { name: "⚡ Redstone Genius", perms: [R.ManageChannels, R.ManageMessages] },
+  { name: "🌿 Farmer", perms: [R.SendMessages] },
+  { name: "🔥 PvP Pro", perms: [R.SendMessages, R.ManageMessages] },
+];
+
+// Voice Channels
+const voiceCategories = [
+  { name: "🎮 Game VCs", perms: [R.ViewChannel] },
+  { name: "🔊 Community VCs", perms: [R.ViewChannel] },
+  { name: "🛠️ Staff VCs", perms: [R.ViewChannel] },
+  { name: "🎥 Creator VCs", perms: [R.ViewChannel] },
+];
+
+// Auto-create VC function (example)
+const autoCreateVC = async (channel, category) => {
+  if(channel.members.size >= 5){ // max 5 per VC
+    const newVC = await channel.guild.channels.create({
+      name: `${channel.name} 2`,
+      type: 2, // Voice
+      parent: category,
+      permissionOverwrites: channel.permissionOverwrites.cache.map(po => po)
+    });
+  }
+};
+// ==============================
+// Part 3 - Server Automation, Logs, Content Creator Channels
+// ==============================
+
+client.once("ready", async () => {
+  console.log(`${client.user.tag} is online!`);
+
+  const guild = client.guilds.cache.first(); // assumes bot is in one server
+
+  // ---------- CREATE ROLES ----------
+  for (const r of roles) {
+    if (!guild.roles.cache.find(role => role.name === r.name)) {
+      await guild.roles.create({
+        name: r.name,
+        permissions: r.perms,
+        reason: "Auto-created by mega bot",
+      });
     }
-  ],
-  welcome: '🔴 Welcome to the **Among Us** server, {user}! Stay sus... or don’t. 👀'
-},
+  }
+
+  // ---------- CREATE CATEGORIES ----------
+  for (const c of categories) {
+    if (!guild.channels.cache.find(ch => ch.name === c.name && ch.type === 4)) {
+      await guild.channels.create({
+        name: c.name,
+        type: 4, // category
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone.id,
+            allow: c.perms,
+          },
+        ],
+      });
+    }
+  }
+
+  // ---------- CREATE TEXT CHANNELS ----------
+  for (const t of textChannels) {
+    const cat = guild.channels.cache.find(ch => ch.name === t.category && ch.type === 4);
+    if (!guild.channels.cache.find(ch => ch.name === t.name && ch.type === 0)) {
+      await guild.channels.create({
+        name: t.name,
+        type: 0, // text
+        parent: cat,
+        topic: t.desc,
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone.id,
+            allow: t.perms,
+          },
+        ],
+      });
+    }
+  }
+
+  // ---------- CREATE VOICE CHANNELS ----------
+  for (const v of voiceCategories) {
+    if (!guild.channels.cache.find(ch => ch.name === v.name && ch.type === 2)) {
+      await guild.channels.create({
+        name: v.name,
+        type: 2, // voice
+        permissionOverwrites: [
+          {
+            id: guild.roles.everyone.id,
+            allow: v.perms,
+          },
+        ],
+      });
+    }
+  }
+
+  console.log("Server setup complete!");
+});
+
+// ---------- AUTO-ASSIGN MEMBER ----------
+client.on("guildMemberAdd", async member => {
+  const role = member.guild.roles.cache.find(r => r.name === "👤 Member");
+  if(role) await member.roles.add(role);
+
+  // Welcome log
+  const log = member.guild.channels.cache.find(ch => ch.name === "📊 Logs");
+  if(log) log.send(`Welcome ${member.user.tag} to the server!`);
+});
+
+// ---------- AUTO-REMOVE MEMBER ----------
+client.on("guildMemberRemove", async member => {
+  const log = member.guild.channels.cache.find(ch => ch.name === "📊 Logs");
+  if(log) log.send(`${member.user.tag} has left the server.`);
+});
+
+// ---------- AUTO VC CREATION ----------
+client.on("voiceStateUpdate", async (oldState, newState) => {
+  if(newState.channel && newState.channel.name.includes("VC")) {
+    autoCreateVC(newState.channel, newState.channel.parentId);
+  }
+});
+
+// ---------- LOGIN ----------
+client.login(1489201262129057822);
