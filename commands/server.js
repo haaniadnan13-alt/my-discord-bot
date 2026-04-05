@@ -261,41 +261,16 @@ client.on("voiceStateUpdate", async (oldState, newState) => {
 // ==============================
 // Part 4 - /createserver Command
 // ==============================
-
-const { REST } = require("@discordjs/rest");
-const { Routes } = require("discord-api-types/v9");
-const { SlashCommandBuilder } = require("@discordjs/builders");
-
-// Define the /createserver command
-const commands = [
-  new SlashCommandBuilder()
-    .setName("createserver")
-    .setDescription("Run the full server setup (roles, channels, categories, logs)")
-].map(cmd => cmd.toJSON());
-
-// Register the slash command (once)
-const rest = new REST({ version: '9' }).setToken(TOKEN);
-(async () => {
-  try {
-    console.log("Started refreshing application (/) commands.");
-    await rest.put(
-      Routes.applicationCommands(client.user?.id || "1489201262129057822"),
-      { body: commands }
-    );
-    console.log("Successfully reloaded application (/) commands.");
-  } catch (err) {
-    console.error(err);
-  }
-})();
-
-// Handle the slash command
 client.on("interactionCreate", async interaction => {
   if (!interaction.isCommand()) return;
 
+  // --- START OF /createserver ---
   if (interaction.commandName === "createserver") {
+    // This stops the "Application did not respond" error!
     await interaction.deferReply({ ephemeral: true });
 
     const guild = interaction.guild;
+    if (!guild) return interaction.editReply("You can only run this inside a server, not in DMs!");
 
     try {
       // ---------- CREATE ROLES ----------
@@ -314,7 +289,7 @@ client.on("interactionCreate", async interaction => {
         if (!guild.channels.cache.find(ch => ch.name === c.name && ch.type === 4)) {
           await guild.channels.create({
             name: c.name,
-            type: 4, // category
+            type: 4,
             permissionOverwrites: [
               {
                 id: guild.roles.everyone.id,
@@ -331,7 +306,7 @@ client.on("interactionCreate", async interaction => {
         if (!guild.channels.cache.find(ch => ch.name === t.name && ch.type === 0)) {
           await guild.channels.create({
             name: t.name,
-            type: 0, // text
+            type: 0,
             parent: cat,
             topic: t.desc,
             permissionOverwrites: [
@@ -349,7 +324,7 @@ client.on("interactionCreate", async interaction => {
         if (!guild.channels.cache.find(ch => ch.name === v.name && ch.type === 2)) {
           await guild.channels.create({
             name: v.name,
-            type: 2, // voice
+            type: 2,
             permissionOverwrites: [
               {
                 id: guild.roles.everyone.id,
@@ -360,10 +335,19 @@ client.on("interactionCreate", async interaction => {
         }
       }
 
+      // If it makes it all the way to the bottom without crashing, send success!
       await interaction.editReply("✅ Full server setup complete!");
+
     } catch (err) {
-      console.error(err);
-      await interaction.editReply("❌ Error running server setup. Check console.");
+      // If it crashes at any point, this will show you exactly what went wrong in Railway logs
+      console.error("Setup Error:", err);
+      await interaction.editReply("❌ Error running server setup. Check your Railway logs.");
     }
   }
+  // --- END OF /createserver ---
+  
+  // Your other commands (like /ping, /help) would go down here...
 });
+
+
+      
