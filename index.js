@@ -17,7 +17,7 @@ const TOKEN = process.env.TOKEN;
 let allCommands = [];
 let commandMap = new Map();
 
-const commandFiles = ['moderation', 'utility', 'fun', 'server'];
+const commandFiles = ['commands', 'server'];
 for (const file of commandFiles) {
   const imported = require(`./commands/${file}`);
   const commands = Array.isArray(imported) ? imported : (imported.data ? [imported] : []);
