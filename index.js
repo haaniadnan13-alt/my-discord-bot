@@ -1,7 +1,5 @@
 require('./keep_alive');
 const { Client, GatewayIntentBits, Partials, REST, Routes, EmbedBuilder } = require('discord.js');
-const { handleCreateServerSelect } = require('./commands/server');
-
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -17,7 +15,7 @@ const TOKEN = process.env.TOKEN;
 let allCommands = [];
 let commandMap = new Map();
 
-const commandFiles = ['commands', 'server'];
+const commandFiles = ['commands'];
 for (const file of commandFiles) {
   const imported = require(`./commands/${file}`);
   const commands = Array.isArray(imported) ? imported : (imported.data ? [imported] : []);
