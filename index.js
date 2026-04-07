@@ -1,7 +1,7 @@
 require('./keep_alive');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, GatewayIntentBits, Partials, REST, Routes, EmbedBuilder, Collection } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, REST, Routes, Collection } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -18,7 +18,11 @@ const TOKEN = process.env.TOKEN;
 client.commands = new Collection();
 const allCommandsJson = [];
 
-// 📂 Command Handler: Reads all .js files inside the /commands folder
+// Global memory for settings (Welcome, Counting, Automod status)
+global.settings = {};
+global.automodSettings = {};
+
+// 📂 Command Handler
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -36,67 +40,30 @@ if (fs.existsSync(commandsPath)) {
 }
 
 client.once('ready', async () => {
-  console.log(`✅ Bot is online as ${client.user.tag}`);
+  console.log(`✅ ${client.user.tag} is online!`);
   const rest = new REST({ version: '10' }).setToken(TOKEN);
   try {
     await rest.put(Routes.applicationCommands(client.user.id), { body: allCommandsJson });
-    console.log(`✅ Registered ${allCommandsJson.length} slash commands!`);
+    console.log(`✅ Registered ${allCommandsJson.length} commands.`);
   } catch (error) {
-    console.error('Failed to register commands:', error);
+    console.error(error);
   }
 });
 
-client.on('interactionCreate', async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    const cmd = client.commands.get(interaction.commandName);
-    if (!cmd) return;
-    try {
-      await cmd.execute(interaction);
-    } catch (err) {
-      console.error(err);
-      if (!interaction.replied) interaction.reply({ content: '❌ Error executing command!', ephemeral: true });
-    }
-  }
-
-  // Verification & Ticket Buttons
-  if (interaction.isButton()) {
-    if (interaction.customId === 'verify_button') {
-      const roleId = global.settings?.[interaction.guildId]?.verifyRole;
-      if (!roleId) return interaction.reply({ content: '❌ Verification not set up!', ephemeral: true });
-      const role = interaction.guild.roles.cache.get(roleId);
-      if (role) await interaction.member.roles.add(role);
-      interaction.reply({ content: '✅ Verified!', ephemeral: true });
-    }
-    if (interaction.customId === 'open_ticket') {
-        const channel = await interaction.guild.channels.create({
-            name: `ticket-${interaction.user.username}`,
-            type: 0, // GuildText
-            permissionOverwrites: [
-                { id: interaction.guild.id, deny: ['ViewChannel'] },
-                { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }
-            ]
-        });
-        interaction.reply({ content: `✅ Ticket created: ${channel}`, ephemeral: true });
-    }
-  }
-});
-
-// Automod & Counting Logic
+// 📩 Message Logic (Automod + Counting)
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
 
-  // 🛡️ Run Automod Engine
+  // 🛡️ Automod Engine (Bad words, Spam, Invites)
   const automod = client.commands.get('automod');
-  if (automod && automod.handle) {
-    await automod.handle(message);
-  }
+  if (automod && automod.handle) await automod.handle(message);
 
   // 🔢 Counting Channel logic
-  const settings = global.settings?.[message.guild.id];
-  if (settings?.countingChannel && message.channel.id === settings.countingChannel) {
+  const s = global.settings[message.guild.id];
+  if (s?.countingChannel === message.channel.id) {
     const num = parseInt(message.content);
-    const expected = (settings.count || 0) + 1;
-    if (isNaN(num) || num !== expected) {
+    const nextNum = (s.count || 0) + 1;
+    if (isNaN(num) || num !== nextNum) {
       message.reply(`❌ Wrong number! Resetting to 0.`);
       global.settings[message.guild.id].count = 0;
     } else {
@@ -106,16 +73,47 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// Join/Leave Handlers
+// 👋 Join/Leave Logic (Welcome + Auto-role)
 client.on('guildMemberAdd', async (member) => {
-  const s = global.settings?.[member.guild.id];
+  const s = global.settings[member.guild.id];
   if (s?.welcomeChannel) {
     const chan = member.guild.channels.cache.get(s.welcomeChannel);
-    if (chan) chan.send(`👋 Welcome ${member.user}!`);
+    if (chan) chan.send(`👋 Welcome ${member.user} to the server!`);
   }
   if (s?.autorole) {
     const role = member.guild.roles.cache.get(s.autorole);
     if (role) await member.roles.add(role).catch(() => null);
+  }
+});
+
+// 🖱️ Interaction Handler (Slash Commands + Buttons)
+client.on('interactionCreate', async (interaction) => {
+  if (interaction.isChatInputCommand()) {
+    const cmd = client.commands.get(interaction.commandName);
+    if (cmd) await cmd.execute(interaction);
+  }
+
+  if (interaction.isButton()) {
+    // Ticket logic
+    if (interaction.customId === 'open_ticket') {
+      const ticketChan = await interaction.guild.channels.create({
+        name: `ticket-${interaction.user.username}`,
+        permissionOverwrites: [
+          { id: interaction.guild.id, deny: ['ViewChannel'] },
+          { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }
+        ]
+      });
+      interaction.reply({ content: `✅ Ticket created: ${ticketChan}`, ephemeral: true });
+    }
+    // Reaction role logic
+    if (interaction.customId.startsWith('role_')) {
+      const roleId = interaction.customId.split('_')[1];
+      const role = interaction.guild.roles.cache.get(roleId);
+      if (role) {
+        await interaction.member.roles.add(role);
+        interaction.reply({ content: `✅ Added **${role.name}** role!`, ephemeral: true });
+      }
+    }
   }
 });
 
