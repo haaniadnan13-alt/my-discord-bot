@@ -21,7 +21,7 @@ const CLIENT_ID = '1489497753523327047';
 client.commands = new Collection();
 const allCommandsJson = [];
 
-// 📂 Load Commands
+// 📂 Command Loader
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -34,6 +34,49 @@ if (fs.existsSync(commandsPath)) {
         client.commands.set(cmd.data.name, cmd);
         allCommandsJson.push(cmd.data.toJSON());
       }
+    }
+  }
+}
+
+// 🌐 The Fix: Push Commands to Discord
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+(async () => {
+  try {
+    console.log('Pushing commands to Discord...');
+    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
+    console.log('✅ Commands registered globally!');
+  } catch (error) {
+    console.error(error);
+  }
+})();
+
+client.on('interactionCreate', async (interaction) => {
+  if (!interaction.isChatInputCommand()) return;
+  const cmd = client.commands.get(interaction.commandName);
+  if (cmd) await cmd.execute(interaction);
+});
+
+// [Your Auto-VC and Button logic below]
+client.on('voiceStateUpdate', async (oldState, newState) => {
+    const { guild, member } = newState;
+    if (newState.channel?.name.includes('➕┃CREATE-NEW-VC')) {
+        const tempChannel = await guild.channels.create({
+            name: `🔊┃${member.user.username}'s Room`,
+            type: ChannelType.GuildVoice,
+            parent: newState.channel.parent,
+            permissionOverwrites: [
+                { id: member.id, allow: ['Connect', 'ManageChannels', 'MoveMembers'] },
+                { id: guild.id, allow: ['Connect'] }
+            ]
+        });
+        await member.voice.setChannel(tempChannel);
+    }
+    if (oldState.channel?.name.includes('🔊┃') && oldState.channel.members.size === 0) {
+        await oldState.channel.delete().catch(() => null);
+    }
+});
+
+client.login(TOKEN);
     }
   }
 }
