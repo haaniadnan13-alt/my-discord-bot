@@ -1,7 +1,7 @@
 require('./keep_alive');
 const fs = require('node:fs');
 const path = require('node:path');
-const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, ChannelType } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -21,7 +21,7 @@ const CLIENT_ID = '1489497753523327047';
 client.commands = new Collection();
 const allCommandsJson = [];
 
-// 📂 Command Handler
+// 📂 Load Commands
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const commandFiles = fs.readdirSync(commandsPath).filter(file => file.endsWith('.js'));
@@ -38,41 +38,26 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
-// 🌐 Register Slash Commands
+// 🌐 Register Global Commands
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
-    console.log('Started refreshing application (/) commands.');
+    console.log('Pushing commands to Discord...');
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-    console.log('Successfully reloaded application (/) commands.');
+    console.log('✅ Global commands registered!');
   } catch (error) {
     console.error(error);
   }
 })();
 
 client.once('ready', () => {
-  console.log(`✅ Logged in as ${client.user.tag}`);
+  console.log(`✅ ${client.user.tag} is online!`);
 });
 
-// 🖱️ Interaction Handler
 client.on('interactionCreate', async (interaction) => {
-  if (interaction.isChatInputCommand()) {
-    const cmd = client.commands.get(interaction.commandName);
-    if (cmd) await cmd.execute(interaction);
-  }
-
-  if (interaction.isButton()) {
-    if (interaction.customId === 'open_ticket') {
-      const ticketChan = await interaction.guild.channels.create({
-        name: `ticket-${interaction.user.username}`,
-        permissionOverwrites: [
-          { id: interaction.guild.id, deny: ['ViewChannel'] },
-          { id: interaction.user.id, allow: ['ViewChannel', 'SendMessages'] }
-        ]
-      });
-      await interaction.reply({ content: `Ticket created: ${ticketChan}`, ephemeral: true });
-    }
-  }
+  if (!interaction.isChatInputCommand()) return;
+  const cmd = client.commands.get(interaction.commandName);
+  if (cmd) await cmd.execute(interaction);
 });
 
 // 🔊 Auto-VC Logic
