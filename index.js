@@ -13,6 +13,7 @@ const CLIENT_ID = '1489497753523327047';
 
 client.commands = new Collection();
 const allCommandsJson = [];
+const seenNames = new Set(); // 🛡️ Anti-Duplicate Shield
 
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
@@ -29,22 +30,23 @@ if (fs.existsSync(commandsPath)) {
           const name = commandData.name;
           const desc = commandData.description;
 
-          // 🔍 VALIDATION CHECK
-          if (!name || name !== name.toLowerCase() || name.includes(' ')) {
-             console.error(`❌ INVALID NAME: "${name}" in ${file}. Must be lowercase, no spaces.`);
-             continue;
-          }
-          if (!desc) {
-             console.error(`❌ MISSING DESCRIPTION: Command "/${name}" in ${file} needs a description.`);
-             continue;
+          // 🔍 Validation
+          if (!name || name !== name.toLowerCase() || name.includes(' ')) continue;
+          if (!desc) continue;
+          
+          // 🚫 Skip if we've already added a command with this name
+          if (seenNames.has(name)) {
+            console.log(`⚠️ Skipping duplicate: ${name} in ${file}`);
+            continue;
           }
 
+          seenNames.add(name);
           client.commands.set(name, cmd);
           allCommandsJson.push(commandData);
         }
       }
     } catch (error) {
-      console.error(`❌ Critical error in ${file}:`, error.message);
+      console.error(`❌ Error in ${file}:`, error.message);
     }
   }
 }
@@ -52,11 +54,11 @@ if (fs.existsSync(commandsPath)) {
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
-    console.log(`Validator finished. Pushing ${allCommandsJson.length} valid commands...`);
+    console.log(`Pushing ${allCommandsJson.length} unique commands...`);
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-    console.log('✅ Commands pushed! If some are missing, check the ❌ errors above.');
+    console.log('✅ SUCCESS: Commands are now live globally!');
   } catch (error) {
-    console.error('❌ Discord rejected the list:', error.message);
+    console.error('❌ Discord rejected the push:', error.message);
   }
 })();
 
@@ -67,8 +69,8 @@ client.on('interactionCreate', async (i) => {
     try {
       await cmd.execute(i);
     } catch (err) {
-      console.error(err);
-      if (!i.replied) await i.reply({ content: 'Command error!', ephemeral: true });
+      console.error(`Error executing ${i.commandName}:`, err);
+      if (!i.replied && !i.deferred) await i.reply({ content: 'Internal Error.', ephemeral: true });
     }
   }
 });
