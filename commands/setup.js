@@ -1,39 +1,67 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
-
-const spamMap = new Map();
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 
 module.exports = [
     {
         data: new SlashCommandBuilder()
-            .setName('automod')
-            .setDescription('🛡️ Toggle full automatic moderation')
-            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
+            .setName('setup-welcome')
+            .setDescription('Set the welcome channel')
+            .addChannelOption(o => o.setName('channel').setDescription('Select channel').addChannelTypes(ChannelType.GuildText).setRequired(true)),
         async execute(interaction) {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only!', ephemeral: true });
-            const status = interaction.options.getString('status');
-            await interaction.reply({ embeds: [new EmbedBuilder().setColor('#00FFCC').setTitle('🛡️ Automod System').setDescription(`Automod has been turned **${status.toUpperCase()}**.`)] });
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
+            const channel = interaction.options.getChannel('channel');
+            await interaction.reply(`✅ Welcome messages will now be sent in ${channel}.`);
         }
     },
     {
         data: new SlashCommandBuilder()
-            .setName('linkfilter')
-            .setDescription('🔗 Toggle link blocking')
-            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices({ name: 'On', value: 'on' }, { name: 'Off', value: 'off' })),
+            .setName('setup-logs')
+            .setDescription('Set the logs channel')
+            .addChannelOption(o => o.setName('channel').setDescription('Select channel').addChannelTypes(ChannelType.GuildText).setRequired(true)),
         async execute(interaction) {
-            const status = interaction.options.getString('status');
-            await interaction.reply(`🔗 Link filter is now **${status}**.`);
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
+            const channel = interaction.options.getChannel('channel');
+            await interaction.reply(`✅ Logs will now be sent in ${channel}.`);
         }
     },
     {
         data: new SlashCommandBuilder()
-            .setName('mentionlimit')
-            .setDescription('🚫 Set max mentions per message')
-            .addIntegerOption(o => o.setName('number').setDescription('Amount of pings allowed').setRequired(true)),
+            .setName('setup-verify')
+            .setDescription('Set the verification channel and role')
+            .addChannelOption(o => o.setName('channel').setDescription('Select channel').addChannelTypes(ChannelType.GuildText).setRequired(true))
+            .addRoleOption(o => o.setName('role').setDescription('Role to give').setRequired(true)),
         async execute(interaction) {
-            const limit = interaction.options.getInteger('number');
-            await interaction.reply(`🚫 Mention limit set to **${limit}** pings per message.`);
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
+            const channel = interaction.options.getChannel('channel');
+            const role = interaction.options.getRole('role');
+
+            const embed = new EmbedBuilder()
+                .setTitle('Verification Required')
+                .setDescription('Click the button below to verify and get access to the server.')
+                .setColor('#00FF00');
+
+            const row = new ActionRowBuilder().addComponents(
+                new ButtonBuilder()
+                    .setCustomId('verify_button')
+                    .setLabel('Verify')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+            await channel.send({ embeds: [embed], components: [row] });
+            await interaction.reply(`✅ Verification system set up in ${channel} with role **${role.name}**.`);
+        }
+    },
+    {
+        data: new SlashCommandBuilder()
+            .setName('autorole')
+            .setDescription('Set a role given to new members')
+            .addRoleOption(o => o.setName('role').setDescription('Select role').setRequired(true)),
+        async execute(interaction) {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only.', ephemeral: true });
+            const role = interaction.options.getRole('role');
+            await interaction.reply(`✅ Auto-role set to **${role.name}**.`);
+        }
+    }
+];
         }
     },
     {
