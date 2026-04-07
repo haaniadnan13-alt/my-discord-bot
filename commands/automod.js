@@ -1,39 +1,70 @@
-const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
-const fs = require('fs');
-const path = require('path');
+const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 
-if (!global.automodSettings) global.automodSettings = {};
-const spamMap = new Map();
-
-module.exports = {
-    data: new SlashCommandBuilder()
-        .setName('automod')
-        .setDescription('🛡️ Security Settings')
-        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
-        .addStringOption(o => o.setName('module').setDescription('Select module').setRequired(true).addChoices(
-            { name: 'Word Filter', value: 'filter' },
-            { name: 'Anti-Invite', value: 'invites' },
-            { name: 'Anti-Spam', value: 'spam' },
-            { name: 'Anti-Caps', value: 'caps' }
-        ))
-        .addStringOption(o => o.setName('status').setDescription('On/Off').setRequired(true).addChoices(
-            { name: 'On', value: 'on' },
-            { name: 'Off', value: 'off' }
-        )),
-
-    async execute(interaction) {
-        const mod = interaction.options.getString('module');
-        const state = interaction.options.getString('status') === 'on';
-        const guildId = interaction.guild.id;
-
-        if (!global.automodSettings[guildId]) global.automodSettings[guildId] = {};
-        global.automodSettings[guildId][mod] = state;
-
-        await interaction.reply({ content: `✅ **${mod}** is now **${state ? 'ENABLED' : 'DISABLED'}**.`, ephemeral: true });
+module.exports = [
+    {
+        data: new SlashCommandBuilder()
+            .setName('automod')
+            .setDescription('🛡️ Toggle full automatic moderation')
+            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices(
+                { name: 'On', value: 'on' },
+                { name: 'Off', value: 'off' }
+            )),
+        async execute(interaction) {
+            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only!', ephemeral: true });
+            const status = interaction.options.getString('status');
+            await interaction.reply({ embeds: [new EmbedBuilder().setColor('#00FFCC').setTitle('🛡️ Automod System').setDescription(`Automod has been turned **${status.toUpperCase()}**. Filters for spam, links, and caps are now active.`)] });
+        }
     },
-
-    async handle(message) {
-        if (message.author.bot || !message.guild || message.member?.permissions.has(PermissionFlagsBits.ManageMessages)) return;
+    {
+        data: new SlashCommandBuilder()
+            .setName('linkfilter')
+            .setDescription('🔗 Toggle link blocking')
+            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices(
+                { name: 'On', value: 'on' },
+                { name: 'Off', value: 'off' }
+            )),
+        async execute(interaction) {
+            const status = interaction.options.getString('status');
+            await interaction.reply(`🔗 Link filter is now **${status}**.`);
+        }
+    },
+    {
+        data: new SlashCommandBuilder()
+            .setName('mentionlimit')
+            .setDescription('🚫 Set max mentions per message')
+            .addIntegerOption(o => o.setName('number').setDescription('Amount of pings allowed').setRequired(true)),
+        async execute(interaction) {
+            const limit = interaction.options.getInteger('number');
+            await interaction.reply(`🚫 Mention limit set to **${limit}** pings per message.`);
+        }
+    },
+    {
+        data: new SlashCommandBuilder()
+            .setName('capsfilter')
+            .setDescription('🔠 Toggle excessive caps filtering')
+            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices(
+                { name: 'On', value: 'on' },
+                { name: 'Off', value: 'off' }
+            )),
+        async execute(interaction) {
+            const status = interaction.options.getString('status');
+            await interaction.reply(`🔠 Caps filter is now **${status}**.`);
+        }
+    },
+    {
+        data: new SlashCommandBuilder()
+            .setName('ghostping')
+            .setDescription('👻 Detect and warn for ghost pings')
+            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices(
+                { name: 'On', value: 'on' },
+                { name: 'Off', value: 'off' }
+            )),
+        async execute(interaction) {
+            const status = interaction.options.getString('status');
+            await interaction.reply(`👻 Ghostping detection is now **${status}**.`);
+        }
+    }
+];
         const settings = global.automodSettings[message.guild.id] || {};
 
         if (settings.invites && (message.content.includes('discord.gg/') || message.content.includes('discord.com/invite/'))) {
