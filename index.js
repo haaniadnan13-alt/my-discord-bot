@@ -21,21 +21,30 @@ if (fs.existsSync(commandsPath)) {
   for (const file of commandFiles) {
     try {
       const imported = require(path.join(commandsPath, file));
-      
-      // 🚀 THIS IS THE FIX: It checks if your file has 1 command or a list of 100
       const commandList = Array.isArray(imported) ? imported : [imported];
 
       for (const cmd of commandList) {
         if (cmd && (cmd.data || cmd.name)) {
           const commandData = cmd.data ? cmd.data.toJSON() : cmd;
-          const commandName = cmd.data ? cmd.data.name : cmd.name;
+          const name = commandData.name;
+          const desc = commandData.description;
 
-          client.commands.set(commandName, cmd);
+          // 🔍 VALIDATION CHECK
+          if (!name || name !== name.toLowerCase() || name.includes(' ')) {
+             console.error(`❌ INVALID NAME: "${name}" in ${file}. Must be lowercase, no spaces.`);
+             continue;
+          }
+          if (!desc) {
+             console.error(`❌ MISSING DESCRIPTION: Command "/${name}" in ${file} needs a description.`);
+             continue;
+          }
+
+          client.commands.set(name, cmd);
           allCommandsJson.push(commandData);
         }
       }
     } catch (error) {
-      console.error(`❌ Failed to load file ${file}:`, error);
+      console.error(`❌ Critical error in ${file}:`, error.message);
     }
   }
 }
@@ -43,11 +52,11 @@ if (fs.existsSync(commandsPath)) {
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
-    console.log(`Searching... Found ${allCommandsJson.length} commands total.`);
+    console.log(`Validator finished. Pushing ${allCommandsJson.length} valid commands...`);
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-    console.log('✅ All commands pushed to Discord!');
+    console.log('✅ Commands pushed! If some are missing, check the ❌ errors above.');
   } catch (error) {
-    console.error('❌ Registration Error:', error);
+    console.error('❌ Discord rejected the list:', error.message);
   }
 })();
 
