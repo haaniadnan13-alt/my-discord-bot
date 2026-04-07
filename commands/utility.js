@@ -1,5 +1,4 @@
 const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-const axios = require('axios');
 
 module.exports = [
     {
@@ -36,13 +35,11 @@ module.exports = [
         async execute(interaction) {
             const { guild } = interaction;
             const embed = new EmbedBuilder()
-                .setColor('#00FF00') // Updated to the green color from your bottom snippet
-                .setTitle(`🏰 ${guild.name}`)
+                .setColor('#0077FF').setTitle(`🏰 ${guild.name}`)
                 .setThumbnail(guild.iconURL())
                 .addFields(
-                    { name: 'Owner', value: `<@${guild.ownerId}>`, inline: true },
                     { name: 'Members', value: `${guild.memberCount}`, inline: true },
-                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount || 0}`, inline: true },
+                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true },
                     { name: 'Created', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`, inline: true }
                 );
             await interaction.reply({ embeds: [embed] });
@@ -106,20 +103,6 @@ module.exports = [
         async execute(interaction) {
             const msg = await interaction.reply({ embeds: [new EmbedBuilder().setColor('#0077FF').setTitle('💡 New Suggestion').setDescription(interaction.options.getString('text')).setFooter({ text: `From: ${interaction.user.tag}` })], fetchReply: true });
             await msg.react('✅'); await msg.react('❌');
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('time').setDescription('⏰ Check city time').addStringOption(o => o.setName('city').setDescription('City name').setRequired(true)),
-        async execute(interaction) {
-            const city = interaction.options.getString('city');
-            await interaction.reply(`⏰ The current time in **${city}** is being fetched...`);
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('weather').setDescription('⛅ Check weather').addStringOption(o => o.setName('city').setDescription('City name').setRequired(true)),
-        async execute(interaction) {
-            const city = interaction.options.getString('city');
-            await interaction.reply(`⛅ Weather for **${city}**: Sunny 24°C (Mock Data).`);
         }
     }
 ];
