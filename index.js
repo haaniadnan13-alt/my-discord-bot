@@ -11,9 +11,12 @@ const client = new Client({
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = '1489497753523327047';
 
+// 🛡️ CRITICAL: This line prevents the "Internal Error"
+global.automodSettings = {}; 
+
 client.commands = new Collection();
 const allCommandsJson = [];
-const seenNames = new Set(); // 🛡️ Anti-Duplicate Shield
+const seenNames = new Set();
 
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
@@ -25,20 +28,11 @@ if (fs.existsSync(commandsPath)) {
       const commandList = Array.isArray(imported) ? imported : [imported];
 
       for (const cmd of commandList) {
-        if (cmd && (cmd.data || cmd.name)) {
-          const commandData = cmd.data ? cmd.data.toJSON() : cmd;
+        if (cmd && cmd.data) {
+          const commandData = cmd.data.toJSON();
           const name = commandData.name;
-          const desc = commandData.description;
 
-          // 🔍 Validation
-          if (!name || name !== name.toLowerCase() || name.includes(' ')) continue;
-          if (!desc) continue;
-          
-          // 🚫 Skip if we've already added a command with this name
-          if (seenNames.has(name)) {
-            console.log(`⚠️ Skipping duplicate: ${name} in ${file}`);
-            continue;
-          }
+          if (seenNames.has(name)) continue;
 
           seenNames.add(name);
           client.commands.set(name, cmd);
@@ -54,11 +48,10 @@ if (fs.existsSync(commandsPath)) {
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
-    console.log(`Pushing ${allCommandsJson.length} unique commands...`);
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-    console.log('✅ SUCCESS: Commands are now live globally!');
+    console.log(`✅ Registered ${allCommandsJson.length} commands.`);
   } catch (error) {
-    console.error('❌ Discord rejected the push:', error.message);
+    console.error('❌ Push failed:', error.message);
   }
 })();
 
@@ -69,10 +62,20 @@ client.on('interactionCreate', async (i) => {
     try {
       await cmd.execute(i);
     } catch (err) {
-      console.error(`Error executing ${i.commandName}:`, err);
-      if (!i.replied && !i.deferred) await i.reply({ content: 'Internal Error.', ephemeral: true });
+      console.error(err);
+      if (!i.replied && !i.deferred) await i.reply({ content: 'Command Error.', ephemeral: true });
     }
   }
+});
+
+// 🛡️ This handles the actual link blocking
+client.on('messageCreate', async (m) => {
+    if (!m.guild || m.author.bot) return;
+    const settings = global.automodSettings[m.guild.id] || {};
+    if (settings.invites && (m.content.includes('discord.gg/') || m.content.includes('discord.com/invite/'))) {
+        await m.delete().catch(() => null);
+        m.channel.send(`🚫 ${m.author}, invites are not allowed!`).then(msg => setTimeout(() => msg.delete(), 5000));
+    }
 });
 
 client.login(TOKEN);
