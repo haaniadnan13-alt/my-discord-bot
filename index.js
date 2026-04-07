@@ -4,14 +4,7 @@ const path = require('node:path');
 const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, ChannelType } = require('discord.js');
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildMembers,
-    GatewayIntentBits.GuildMessageReactions,
-    GatewayIntentBits.GuildVoiceStates,
-  ],
+  intents: [3276799], 
   partials: [Partials.Channel, Partials.Message, Partials.Reaction]
 });
 
@@ -38,72 +31,26 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
-// 🌐 The Fix: Push Commands to Discord
+// 🌐 Global Registration Logic
 const rest = new REST({ version: '10' }).setToken(TOKEN);
 (async () => {
   try {
-    console.log('Pushing commands to Discord...');
+    console.log('Pushing commands GLOBALLY...');
+    // This line registers commands for EVERY server the bot is in
     await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-    console.log('✅ Commands registered globally!');
+    console.log('✅ Success! Commands are now global.');
   } catch (error) {
     console.error(error);
   }
 })();
 
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  const cmd = client.commands.get(interaction.commandName);
-  if (cmd) await cmd.execute(interaction);
+client.on('interactionCreate', async (i) => {
+  if (!i.isChatInputCommand()) return;
+  const cmd = client.commands.get(i.commandName);
+  if (cmd) await cmd.execute(i);
 });
 
-// [Your Auto-VC and Button logic below]
-client.on('voiceStateUpdate', async (oldState, newState) => {
-    const { guild, member } = newState;
-    if (newState.channel?.name.includes('➕┃CREATE-NEW-VC')) {
-        const tempChannel = await guild.channels.create({
-            name: `🔊┃${member.user.username}'s Room`,
-            type: ChannelType.GuildVoice,
-            parent: newState.channel.parent,
-            permissionOverwrites: [
-                { id: member.id, allow: ['Connect', 'ManageChannels', 'MoveMembers'] },
-                { id: guild.id, allow: ['Connect'] }
-            ]
-        });
-        await member.voice.setChannel(tempChannel);
-    }
-    if (oldState.channel?.name.includes('🔊┃') && oldState.channel.members.size === 0) {
-        await oldState.channel.delete().catch(() => null);
-    }
-});
-
-client.login(TOKEN);
-    }
-  }
-}
-
-// 🌐 Register Global Commands
-const rest = new REST({ version: '10' }).setToken(TOKEN);
-(async () => {
-  try {
-    console.log('Pushing commands to Discord...');
-    await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-    console.log('✅ Global commands registered!');
-  } catch (error) {
-    console.error(error);
-  }
-})();
-
-client.once('ready', () => {
-  console.log(`✅ ${client.user.tag} is online!`);
-});
-
-client.on('interactionCreate', async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-  const cmd = client.commands.get(interaction.commandName);
-  if (cmd) await cmd.execute(interaction);
-});
-
-// 🔊 Auto-VC Logic
+// Auto-VC
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const { guild, member } = newState;
     if (newState.channel?.name.includes('➕┃CREATE-NEW-VC')) {
