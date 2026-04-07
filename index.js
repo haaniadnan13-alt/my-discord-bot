@@ -35,6 +35,10 @@ if (fs.existsSync(commandsPath)) {
         client.commands.set(cmd.data.name, cmd);
         allCommandsJson.push(cmd.data.toJSON());
       }
+      // NEW: Link message logic from command files to the client
+      if (cmd.name === 'messageCreate') {
+        client.on('messageCreate', (message) => cmd.execute(message));
+      }
     }
   }
 }
@@ -50,12 +54,9 @@ client.once('ready', async () => {
   }
 });
 
-// 📩 Message Logic (Automod + Counting)
+// 📩 Message Logic (Counting System)
 client.on('messageCreate', async (message) => {
   if (message.author.bot || !message.guild) return;
-
-  const automod = client.commands.get('automod');
-  if (automod && automod.handle) await automod.handle(message);
 
   const s = global.settings[message.guild.id];
   if (s?.countingChannel === message.channel.id) {
@@ -71,7 +72,7 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// 👋 Join Logic (Welcome + Auto-role + Verified Auto-Assign)
+// 👋 Join Logic (Welcome + Auto-role)
 client.on('guildMemberAdd', async (member) => {
   const s = global.settings[member.guild.id];
   if (s?.welcomeChannel) {
@@ -83,13 +84,9 @@ client.on('guildMemberAdd', async (member) => {
     const role = member.guild.roles.cache.get(s.autorole);
     if (role) await member.roles.add(role).catch(() => null);
   }
-
-  // Template Auto-Assign
-  const verifiedRole = member.guild.roles.cache.find(r => r.name === '⭐ VERIFIED');
-  if (verifiedRole) await member.roles.add(verifiedRole).catch(() => null);
 });
 
-// 🎤 Auto-VC (Join-to-Create)
+// 🎤 Auto-VC
 client.on('voiceStateUpdate', async (oldState, newState) => {
     const { guild, member } = newState;
     if (newState.channel?.name.includes('➕┃CREATE-NEW-VC')) {
@@ -126,14 +123,6 @@ client.on('interactionCreate', async (interaction) => {
         ]
       });
       interaction.reply({ content: `✅ Ticket created: ${ticketChan}`, ephemeral: true });
-    }
-    if (interaction.customId.startsWith('role_')) {
-      const roleId = interaction.customId.split('_')[1];
-      const role = interaction.guild.roles.cache.get(roleId);
-      if (role) {
-        await interaction.member.roles.add(role);
-        interaction.reply({ content: `✅ Added **${role.name}** role!`, ephemeral: true });
-      }
     }
   }
 });
