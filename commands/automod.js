@@ -36,6 +36,45 @@ module.exports = {
         if (message.author.bot || !message.guild || message.member?.permissions.has(PermissionFlagsBits.ManageMessages)) return;
         const settings = global.automodSettings[message.guild.id] || {};
 
+        if (settings.invites && (message.content.includes('discord.gg/') || message.content.includes('discord.com/invite/'))) {
+            await message.delete().catch(() => null);
+            return message.channel.send(`🚫 ${message.author}, invites are not allowed.`);
+        }
+
+        if (settings.spam) {
+            const now = Date.now();
+            const timestamps = spamMap.get(message.author.id) || [];
+            timestamps.push(now);
+            const recent = timestamps.filter(t => now - t < 5000);
+            spamMap.set(message.author.id, recent);
+            if (recent.length > 5) {
+                await message.delete().catch(() => null);
+                return message.channel.send(`🚫 ${message.author}, stop spamming!`);
+            }
+        }
+
+        if (settings.filter !== false) {
+            const p = path.join(__dirname, '../badwords.json');
+            if (fs.existsSync(p)) {
+                const words = JSON.parse(fs.readFileSync(p, 'utf8'));
+                if (words.some(w => message.content.toLowerCase().includes(w))) {
+                    await message.delete().catch(() => null);
+                    return message.channel.send(`🚫 ${message.author}, watch your language!`);
+                }
+            }
+        }
+
+        if (settings.caps && message.content.length > 8) {
+            const caps = message.content.replace(/[^A-Z]/g, "").length;
+            if (caps / message.content.length > 0.8) {
+                await message.delete().catch(() => null);
+                return message.channel.send(`🚫 ${message.author}, stop using too many caps.`);
+            }
+        }
+    }
+};
+        const settings = global.automodSettings[message.guild.id] || {};
+
         // 1. Anti-Invite
         if (settings.invites && (message.content.includes('discord.gg/') || message.content.includes('discord.com/invite/'))) {
             await message.delete().catch(() => null);
