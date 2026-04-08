@@ -1,78 +1,86 @@
-const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder } = require('discord.js');
-const templates = require('../server_new.js');
+const { SlashCommandBuilder, PermissionFlagsBits, ChannelType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const path = require('path');
 
 module.exports = {
     data: new SlashCommandBuilder()
         .setName('createserver')
-        .setDescription('🛠️ Build a professional gaming server with precise permissions')
-        .addStringOption(o => o.setName('game').setDescription('Select template (rl, mc, cod, apex, roblox, rivals)').setRequired(true))
+        .setDescription('🛠️ Build a professional server from templates')
+        .addStringOption(o => o.setName('game').setDescription('Select template (rl, mc, cod, apex, roblox, rivals, support)').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
         const game = interaction.options.getString('game').toLowerCase();
+        const ownerID = '1316341477114122305';
         const guild = interaction.guild;
 
-        await interaction.deferReply();
+        // Private check
+        if (game === 'support' && interaction.user.id !== ownerID) {
+            return interaction.reply({ content: '❌ Error: Template not found.', ephemeral: true });
+        }
+
+        await interaction.deferReply({ ephemeral: true });
 
         try {
+            // This line tells the bot to look inside your templates folder for the file
+            const template = require(path.join(__dirname, '..', 'templates', `${game}.js`));
+            
             // 1. Setup Roles
-            const verifiedRole = await guild.roles.create({ name: 'Member', color: '#3498db', reason: 'Server Setup' });
-            const staffRole = await guild.roles.create({ name: 'Staff', color: '#e74c3c', permissions: [PermissionFlagsBits.ManageMessages, PermissionFlagsBits.KickMembers], reason: 'Server Setup' });
+            const rMap = {};
+            for (const r of template.roles) {
+                rMap[r.n] = await guild.roles.create({ name: r.n, color: r.c, permissions: r.p });
+            }
 
-            // 2. VERIFICATION CATEGORY (Private to unverified)
-            const verifyCat = await guild.channels.create({ name: '🛡️┃VERIFICATION', type: ChannelType.GuildCategory });
-            const verifyChan = await guild.channels.create({
-                name: '✅┃verify-here',
-                type: ChannelType.GuildText,
-                parent: verifyCat.id,
-                permissionOverwrites: [
-                    { id: guild.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.ReadMessageHistory], deny: [PermissionFlagsBits.SendMessages] },
-                    { id: verifiedRole.id, deny: [PermissionFlagsBits.ViewChannel] } // Hide after verified
-                ]
-            });
+            const verifiedRole = rMap['✅ Verified'];
+            const staffRole = rMap['🔧 Staff'] || rMap['Moderator'];
 
-            const vEmbed = new EmbedBuilder()
-                .setTitle('SERVER VERIFICATION')
-                .setDescription('Welcome! Please use the `/verify` command or click the button below to gain access.')
-                .setColor('#3498db');
-            await verifyChan.send({ embeds: [vEmbed] });
+            // 2. Build Categories & Channels
+            for (const cat of template.categories) {
+                let overwrites = [{ id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }];
 
-            // 3. STAFF AREA (Private to Staff)
-            const staffCat = await guild.channels.create({ 
-                name: '🔐┃STAFF ONLY', 
-                type: ChannelType.GuildCategory,
-                permissionOverwrites: [
-                    { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
-                    { id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] }
-                ]
-            });
-            await guild.channels.create({ name: '🔨┃staff-chat', type: ChannelType.GuildText, parent: staffCat.id });
-            await guild.channels.create({ name: '📜┃mod-logs', type: ChannelType.GuildText, parent: staffCat.id });
+                if (cat.isVerify) {
+                    overwrites = [
+                        { id: guild.id, allow: [PermissionFlagsBits.ViewChannel], deny: [PermissionFlagsBits.SendMessages] },
+                        { id: verifiedRole.id, deny: [PermissionFlagsBits.ViewChannel] }
+                    ];
+                } else if (cat.staffOnly) {
+                    overwrites.push({ id: staffRole.id, allow: [PermissionFlagsBits.ViewChannel] });
+                } else {
+                    overwrites.push({ id: verifiedRole.id, allow: [PermissionFlagsBits.ViewChannel] });
+                }
 
-            // 4. MAIN TEMPLATE CHANNELS (Using your templates file)
-            const data = templates[game];
-            if (data) {
-                for (const cat of data.categories) {
-                    const category = await guild.channels.create({ name: cat.n, type: ChannelType.GuildCategory });
-                    
-                    for (const ch of cat.channels) {
-                        await guild.channels.create({ 
-                            name: ch.n, 
-                            type: ChannelType.GuildText, 
-                            parent: category.id,
-                            permissionOverwrites: [
-                                { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] }, // Unverified can't see
-                                { id: verifiedRole.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] } // Members can
-                            ]
-                        });
+                const category = await guild.channels.create({
+                    name: cat.name,
+                    type: ChannelType.GuildCategory,
+                    permissionOverwrites: overwrites
+                });
+
+                for (const ch of cat.channels) {
+                    const channel = await guild.channels.create({ name: ch.n, type: ChannelType.GuildText, parent: category.id });
+
+                    if (cat.isPublic) {
+                        await channel.permissionOverwrites.edit(verifiedRole.id, { SendMessages: false });
+                    }
+
+                    const embed = new EmbedBuilder()
+                        .setTitle(ch.n.toUpperCase())
+                        .setDescription(ch.d || 'No description.')
+                        .setColor(verifiedRole.color);
+
+                    if (cat.isVerify) {
+                        const row = new ActionRowBuilder().addComponents(
+                            new ButtonBuilder().setCustomId('verify_button').setLabel('Verify').setStyle(ButtonStyle.Success)
+                        );
+                        await channel.send({ embeds: [embed], components: [row] });
+                    } else {
+                        await channel.send({ embeds: [embed] });
                     }
                 }
             }
 
-            return interaction.editReply(`✅ **SERVER DEPLOYED.** Verified Role and Staff Area created with preset permissions.`);
+            return interaction.editReply(`✅ **${game.toUpperCase()} SERVER DEPLOYED.**`);
         } catch (e) {
             console.error(e);
-            return interaction.editReply('❌ Deployment failed. Check bot permissions.');
+            return interaction.editReply('❌ Error loading template. Make sure the file exists in the templates folder.');
         }
     }
 };
