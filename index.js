@@ -43,6 +43,10 @@ if (fs.existsSync(commandsPath)) {
 // 2. DEPLOY & DIAGNOSE COMMANDS
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
+    
+    // TOOL: This lists all names in logs so you can find the duplicate
+    console.log("Current Command Names:", allCommandsJson.map(c => c.name));
+
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
         console.log(`🔄 Refreshing ${allCommandsJson.length} slash commands...`);
@@ -54,7 +58,6 @@ client.once('ready', async () => {
     } catch (error) {
         console.error("❌ Failed to deploy commands.");
         if (error.rawError && error.rawError.errors) {
-            // This shows the exact field (name, description, etc.) causing the error
             console.dir(error.rawError.errors, { depth: null });
         } else {
             console.error(error);
@@ -85,7 +88,6 @@ client.on('messageCreate', async (m) => {
 });
 
 client.on('interactionCreate', async (i) => {
-  // TICKET BUTTON HANDLER
   if (i.isButton() && i.customId === 'create_ticket_btn') {
     const { guild, user } = i;
     try {
@@ -118,7 +120,6 @@ client.on('interactionCreate', async (i) => {
     }
   }
 
-  // SLASH COMMAND HANDLER
   if (!i.isChatInputCommand()) return;
   const cmd = client.commands.get(i.commandName);
   if (cmd) {
