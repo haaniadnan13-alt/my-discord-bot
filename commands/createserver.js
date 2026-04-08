@@ -5,7 +5,7 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('createserver')
         .setDescription('🛠️ Build a professional gaming server with precise permissions')
-        // Removed .addChoices so "support" isn't blocked by Discord's UI
+        // Choices removed so Discord UI doesn't block "support" or reveal it to others
         .addStringOption(o => o.setName('game').setDescription('Select template (rl, mc, cod, apex, roblox, rivals)').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
@@ -25,7 +25,7 @@ module.exports = {
 
         // --- STANDARD TEMPLATE LOGIC ---
         const data = templates[game];
-        if (!data) return interaction.reply({ content: '❌ Invalid template. Enter: rl, mc, cod, apex, roblox, or rivals.', ephemeral: true });
+        if (!data) return interaction.reply({ content: '❌ Invalid template. Choose from: rl, mc, cod, apex, roblox, rivals.', ephemeral: true });
 
         await interaction.reply({ content: `🚀 Assembling **${game.toUpperCase()}** template...`, ephemeral: true });
 
@@ -88,51 +88,112 @@ module.exports = {
 
 // --- PRIVATE SUPPORT BUILDER FUNCTION ---
 async function buildSupport(interaction, guild) {
-    // 1. Paste your direct image link here for the ServerForge icon
+    // Replace with your direct image link for the server icon
     const serverIconUrl = 'YOUR_IMAGE_LINK_HERE';
 
     try {
-        // Update Server Identity
         await guild.setName('ServerForge Support');
         if (serverIconUrl.startsWith('http')) {
-            await guild.setIcon(serverIconUrl).catch(e => console.log("Icon upload failed, link might be invalid."));
+            await guild.setIcon(serverIconUrl).catch(() => console.log("Icon failed."));
         }
 
+        // 1. Create Staff Roles
         const roles = [
             { n: '👑 OWNER', c: '#8B0000', p: [PermissionFlagsBits.Administrator] },
-            { n: '🛠️ ADMIN', c: '#FF0000', p: [PermissionFlagsBits.Administrator] },
+            { n: '🛠️ ADMIN', c: '#FF0000', p: [PermissionFlagsBits.ManageGuild, PermissionFlagsBits.ManageRoles, PermissionFlagsBits.ManageChannels] },
             { n: '⚙️ SUPPORT MANAGER', c: '#FFA500', p: [] },
             { n: '🛡️ SUPPORT MOD', c: '#FFFF00', p: [] },
+            { n: '👀 SUPPORT HELPER', c: '#008000', p: [] },
+            { n: '🎫 TICKET STAFF', c: '#0000FF', p: [] },
+            { n: '🤖 BOT DEV', c: '#800080', p: [PermissionFlagsBits.ManageGuild] },
+            { n: '🧰 TECH STAFF', c: '#808080', p: [] },
             { n: 'MEMBER', c: '#FFFFFF', p: [] }
         ];
 
-        const rolesMap = {};
+        const rMap = {};
         for (const r of roles) {
-            rolesMap[r.n] = await guild.roles.create({ name: r.n, color: r.c, permissions: r.p });
+            rMap[r.n] = await guild.roles.create({ name: r.n, color: r.c, permissions: r.p });
         }
 
+        const staffRoles = [rMap['👑 OWNER'], rMap['🛠️ ADMIN'], rMap['⚙️ SUPPORT MANAGER'], rMap['🛡️ SUPPORT MOD'], rMap['🤖 BOT DEV']];
+        const memberRole = rMap['MEMBER'];
+
+        // 2. Define Category Structure
         const structure = [
-            { cat: '📢┃INFORMATION', channels: [{ n: '📜┃rules', d: 'Support rules and ticket guidelines.' }, { n: '👋┃welcome', d: 'Join info and auto-role setup.' }, { n: '📌┃how-to-get-support', d: 'Ticket instructions.' }] },
-            { cat: '💬┃GENERAL', channels: [{ n: '💬┃general-chat', d: 'Community discussion.' }, { n: '❓┃help', d: 'Quick assistance.' }, { n: '🐞┃bug-reports', d: 'Report issues here.' }] }
+            {
+                name: '📢┃INFORMATION',
+                isPublic: true,
+                channels: [
+                    { n: '📜┃rules', d: 'Support rules, ticket guidelines, behavior expectations.' },
+                    { n: '📣┃announcements', d: 'Bot updates, outages, and server news.' },
+                    { n: '👋┃welcome', d: 'Join message, auto-role info, support instructions.' },
+                    { n: '📌┃how-to-get-support', d: 'Explains ticket usage and requirements.' }
+                ]
+            },
+            {
+                name: '💬┃GENERAL',
+                channels: [
+                    { n: '💬┃general-chat', d: 'Talk about the bot or ask quick questions.' },
+                    { n: '❓┃help', d: 'Quick help without opening ticket.' },
+                    { n: '🐞┃bug-reports', d: 'Report bugs with screenshots.' },
+                    { n: '💡┃suggestions', d: 'Suggest improvements.' },
+                    { n: '👋┃bye', d: 'Messages when members leave the server.', botOnly: true }
+                ]
+            },
+            {
+                name: '👑┃STAFF ONLY',
+                staffOnly: true,
+                channels: [
+                    { n: '💬┃staff-chat', d: 'Staff discussion, planning, ticket coordination.' },
+                    { n: '📝┃logs', d: 'Staff-only logs for server actions and tickets.' }
+                ]
+            }
         ];
 
-        for (const s of structure) {
-            const category = await guild.channels.create({ name: s.cat, type: ChannelType.GuildCategory });
-            for (const ch of s.channels) {
-                const channel = await guild.channels.create({ name: ch.n, type: ChannelType.GuildText, parent: category.id });
-                
+        // 3. Create Channels & Apply Permissions
+        for (const cat of structure) {
+            const category = await guild.channels.create({ 
+                name: cat.name, 
+                type: ChannelType.GuildCategory,
+                permissionOverwrites: [
+                    { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
+                    ...staffRoles.map(r => ({ id: r.id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] }))
+                ]
+            });
+
+            if (!cat.staffOnly) {
+                await category.permissionOverwrites.edit(memberRole.id, { ViewChannel: true });
+            }
+
+            for (const ch of cat.channels) {
+                const channel = await guild.channels.create({ 
+                    name: ch.n, 
+                    type: ChannelType.GuildText, 
+                    parent: category.id 
+                });
+
+                // Custom Overwrites for Info channels (No Member Sending)
+                if (cat.isPublic) {
+                    await channel.permissionOverwrites.edit(memberRole.id, { SendMessages: false });
+                }
+
                 const embed = new EmbedBuilder()
                     .setTitle(ch.n.toUpperCase())
-                    .setDescription(`**Description:** ${ch.d}\n\n*Automated ServerForge Setup*`)
+                    .setDescription(`**Description:** ${ch.d}`)
                     .setColor('#8B0000')
                     .setTimestamp();
-
                 await channel.send({ embeds: [embed] });
             }
         }
 
+        // 4. Voice Channels
         const vCat = await guild.channels.create({ name: '🎧┃VOICE', type: ChannelType.GuildCategory });
-        await guild.channels.create({ name: '🎤┃SUPPORT-VC', type: ChannelType.GuildVoice, parent: vCat.id });
+        await guild.channels.create({ 
+            name: '🎤┃SUPPORT-VC', 
+            type: ChannelType.GuildVoice, 
+            parent: vCat.id,
+            permissionOverwrites: [{ id: memberRole.id, allow: [PermissionFlagsBits.Connect, PermissionFlagsBits.Speak] }]
+        });
         await guild.channels.create({ name: '➕┃CREATE-NEW-VC', type: ChannelType.GuildVoice, parent: vCat.id });
 
         return interaction.followUp('✅ **SUPPORT SERVER DEPLOYED.**');
