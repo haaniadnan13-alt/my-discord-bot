@@ -1,6 +1,7 @@
 require('./keep_alive');
 const fs = require('node:fs');
 const path = require('node:path');
+// Added PermissionFlagsBits and ChannelType here
 const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 
 const client = new Client({
@@ -60,22 +61,23 @@ client.on('messageCreate', async (m) => {
 });
 
 client.on('interactionCreate', async (i) => {
-  // 🎫 TICKET BUTTON LOGIC
+  // 🎫 NEW: ADVANCED TICKET BUTTON HANDLER
   if (i.isButton() && i.customId === 'create_ticket_btn') {
     const { guild, user } = i;
     
     try {
+      // Creates channel at the absolute TOP of the server
       const ticketChannel = await guild.channels.create({
         name: `🎫-${user.username}`,
         type: ChannelType.GuildText,
-        position: 0, // Top level
+        position: 0, 
         permissionOverwrites: [
           {
             id: guild.id, // @everyone
             deny: [PermissionFlagsBits.ViewChannel],
           },
           {
-            id: user.id, // Creator
+            id: user.id, // Ticket Creator
             allow: [
               PermissionFlagsBits.ViewChannel,
               PermissionFlagsBits.SendMessages,
@@ -85,7 +87,7 @@ client.on('interactionCreate', async (i) => {
             ],
           },
           {
-            id: client.user.id, // Bot
+            id: client.user.id, // The Bot
             allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
           }
         ],
@@ -95,11 +97,11 @@ client.on('interactionCreate', async (i) => {
       return i.reply({ content: `Ticket created: ${ticketChannel}`, ephemeral: true });
     } catch (err) {
       console.error(err);
-      return i.reply({ content: "❌ Error creating ticket.", ephemeral: true });
+      return i.reply({ content: "❌ Error creating ticket. Check my permissions!", ephemeral: true });
     }
   }
 
-  // SLASH COMMAND LOGIC
+  // EXISTING: SLASH COMMAND HANDLER
   if (!i.isChatInputCommand()) return;
   const cmd = client.commands.get(i.commandName);
   if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
