@@ -25,7 +25,7 @@ client.commands = new Collection();
 const allCommandsJson = [];
 const seenNames = new Set();
 
-// 1. LOAD COMMANDS & SKIP DUPLICATES
+// 1. LOAD COMMANDS & AUTO-SKIP DUPLICATES
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const files = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
@@ -46,7 +46,7 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
-// 2. DEPLOY COMMANDS
+// 2. DEPLOY COMMANDS WITH ERROR DIAGNOSTICS
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -67,18 +67,29 @@ client.once('ready', async () => {
     }
 });
 
+// 3. IMPOSSIBLE-TO-BYPASS AUTOMOD
 client.on('messageCreate', async (m) => {
     if (!m.guild || m.author.bot) return;
     const s = global.automodSettings[m.guild.id] || { filter: true, invites: true };
-    const content = m.content.toLowerCase();
-    if (s.invites && (content.includes('discord.gg/') || content.includes('http'))) {
+
+    // Clean accents (û -> u) and map symbols/numbers to letters
+    const normalized = m.content.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const leetMap = { '4': 'a', '@': 'a', '3': 'e', '1': 'i', '!': 'i', '0': 'o', '5': 's', '$': 's', '7': 't' };
+    const deLeeted = normalized.replace(/[4@31!05$7]/g, char => leetMap[char]);
+    
+    // Remove ALL non-alphabet characters (f.u.c.k or f u c k -> fuck)
+    const finalCleaned = deLeeted.replace(/[^a-z]/g, "");
+
+    if (s.invites && (m.content.includes('discord.gg/') || m.content.includes('http'))) {
         return m.delete().catch(() => null);
     }
+
     if (s.filter && badWordsList.length > 0) {
-        if (badWordsList.some(word => content.includes(word.toLowerCase()))) {
+        const isBad = badWordsList.some(word => finalCleaned.includes(word.toLowerCase()));
+        if (isBad) {
             try {
                 await m.delete();
-                const warn = await m.channel.send(`🚫 ${m.author}, watch your language!`);
+                const warn = await m.channel.send(`🚫 ${m.author}, you cannot bypass the filter!`);
                 setTimeout(() => warn.delete().catch(() => null), 3000);
             } catch (err) {
                 console.log("Hierarchy error.");
@@ -87,8 +98,8 @@ client.on('messageCreate', async (m) => {
     }
 });
 
+// 4. INTERACTION HANDLER (TICKETS & COMMANDS)
 client.on('interactionCreate', async (i) => {
-  // Ticket Button Logic
   if (i.isButton() && i.customId === 'create_ticket_btn') {
     const { guild, user } = i;
     try {
@@ -107,14 +118,13 @@ client.on('interactionCreate', async (i) => {
           }
         ],
       });
-      await ticketChannel.send({ content: `Hello ${user}, a staff member will be with you shortly.` });
+      await ticketChannel.send({ content: `Hello ${user}, a staff member will assist you shortly.` });
       return i.reply({ content: `Ticket created: ${ticketChannel}`, ephemeral: true });
     } catch (err) {
       return i.reply({ content: "❌ Error creating ticket.", ephemeral: true });
     }
   }
 
-  // Slash Command Logic
   if (!i.isChatInputCommand()) return;
   const cmd = client.commands.get(i.commandName);
   if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
