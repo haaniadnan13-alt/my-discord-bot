@@ -24,6 +24,7 @@ module.exports = [
                 .addFields(
                     { name: 'ID', value: member.id, inline: true },
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
+                    { name: 'Created Account', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
                     { name: 'Roles', value: member.roles.cache.map(r => r).join(' ').replace('@everyone', '') || 'None' }
                 );
             await interaction.reply({ embeds: [embed] });
@@ -38,7 +39,8 @@ module.exports = [
                 .setThumbnail(guild.iconURL())
                 .addFields(
                     { name: 'Members', value: `${guild.memberCount}`, inline: true },
-                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true }
+                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true },
+                    { name: 'Created', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`, inline: true }
                 );
             await interaction.reply({ embeds: [embed] });
         }
@@ -51,12 +53,15 @@ module.exports = [
         }
     },
     {
-        data: new SlashCommandBuilder().setName('clear').setDescription('🧹 Delete multiple messages').addIntegerOption(o => o.setName('amount').setDescription('Number of messages (1-100)').setRequired(true).setMinValue(1).setMaxValue(100)),
+        data: new SlashCommandBuilder().setName('invite').setDescription('🔗 Get bot invite link'),
         async execute(interaction) {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: '❌ No permission!', ephemeral: true });
-            const amount = interaction.options.getInteger('amount');
-            await interaction.channel.bulkDelete(amount);
-            await interaction.reply({ content: `🧹 Deleted ${amount} messages.`, ephemeral: true });
+            await interaction.reply({ content: `🔗 **Invite me here:** https://discord.com/api/oauth2/authorize?client_id=${interaction.client.user.id}&permissions=8&scope=bot%20applications.commands`, ephemeral: true });
+        }
+    },
+    {
+        data: new SlashCommandBuilder().setName('uptime').setDescription('⏱️ How long the bot has been online'),
+        async execute(interaction) {
+            await interaction.reply(`⏱️ **Uptime:** ${Math.round(interaction.client.uptime / 60000)} minutes.`);
         }
     }
 ];
