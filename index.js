@@ -23,8 +23,9 @@ try {
 
 client.commands = new Collection();
 const allCommandsJson = [];
+const seenNames = new Set();
 
-// 1. LOAD COMMANDS FROM FILES
+// 1. LOAD COMMANDS & SKIP DUPLICATES
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const files = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
@@ -33,6 +34,11 @@ if (fs.existsSync(commandsPath)) {
     const commandList = Array.isArray(imported) ? imported : [imported];
     for (const cmd of commandList) {
       if (cmd && cmd.data) {
+        if (seenNames.has(cmd.data.name)) {
+          console.log(`⚠️ Skipping duplicate: ${cmd.data.name}`);
+          continue;
+        }
+        seenNames.add(cmd.data.name);
         client.commands.set(cmd.data.name, cmd);
         allCommandsJson.push(cmd.data.toJSON());
       }
@@ -40,13 +46,9 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
-// 2. DEPLOY & DIAGNOSE COMMANDS
+// 2. DEPLOY COMMANDS
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
-    
-    // TOOL: This lists all names in logs so you can find the duplicate
-    console.log("Current Command Names:", allCommandsJson.map(c => c.name));
-
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
         console.log(`🔄 Refreshing ${allCommandsJson.length} slash commands...`);
@@ -69,11 +71,9 @@ client.on('messageCreate', async (m) => {
     if (!m.guild || m.author.bot) return;
     const s = global.automodSettings[m.guild.id] || { filter: true, invites: true };
     const content = m.content.toLowerCase();
-    
     if (s.invites && (content.includes('discord.gg/') || content.includes('http'))) {
         return m.delete().catch(() => null);
     }
-    
     if (s.filter && badWordsList.length > 0) {
         if (badWordsList.some(word => content.includes(word.toLowerCase()))) {
             try {
@@ -88,6 +88,7 @@ client.on('messageCreate', async (m) => {
 });
 
 client.on('interactionCreate', async (i) => {
+  // Ticket Button Logic
   if (i.isButton() && i.customId === 'create_ticket_btn') {
     const { guild, user } = i;
     try {
@@ -98,13 +99,7 @@ client.on('interactionCreate', async (i) => {
           { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
           {
             id: user.id,
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-              PermissionFlagsBits.AttachFiles,
-              PermissionFlagsBits.EmbedLinks
-            ]
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
           },
           {
             id: client.user.id,
@@ -115,20 +110,14 @@ client.on('interactionCreate', async (i) => {
       await ticketChannel.send({ content: `Hello ${user}, a staff member will be with you shortly.` });
       return i.reply({ content: `Ticket created: ${ticketChannel}`, ephemeral: true });
     } catch (err) {
-      console.error(err);
       return i.reply({ content: "❌ Error creating ticket.", ephemeral: true });
     }
   }
 
+  // Slash Command Logic
   if (!i.isChatInputCommand()) return;
   const cmd = client.commands.get(i.commandName);
-  if (cmd) {
-    try { 
-        await cmd.execute(i); 
-    } catch (e) { 
-        console.error(e); 
-    }
-  }
+  if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
 });
 
 client.login(TOKEN);
