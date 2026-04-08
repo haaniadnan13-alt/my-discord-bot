@@ -31,18 +31,6 @@ module.exports = [
     },
     {
         data: new SlashCommandBuilder()
-            .setName('slowmode')
-            .setDescription('⏳ Set channel slowmode')
-            .addIntegerOption(o => o.setName('seconds').setDescription('Seconds (0 to disable)').setRequired(true)),
-        async execute(interaction) {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageChannels)) return interaction.reply({ content: '❌ No permission.', ephemeral: true });
-            const sec = interaction.options.getInteger('seconds');
-            await interaction.channel.setRateLimitPerUser(sec);
-            await interaction.reply(`⏳ Slowmode set to **${sec}** seconds.`);
-        }
-    },
-    {
-        data: new SlashCommandBuilder()
             .setName('timeout')
             .setDescription('🔇 Timeout a member')
             .addUserOption(o => o.setName('target').setDescription('The member').setRequired(true))
@@ -54,18 +42,6 @@ module.exports = [
             if (!user?.manageable) return interaction.reply('❌ I cannot mute this user.');
             await user.timeout(min * 60000);
             await interaction.reply(`🔇 **${user.user.tag}** muted for ${min} minutes.`);
-        }
-    },
-    {
-        data: new SlashCommandBuilder()
-            .setName('clear')
-            .setDescription('🧹 Bulk delete messages')
-            .addIntegerOption(o => o.setName('amount').setDescription('1-100').setRequired(true)),
-        async execute(interaction) {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: '❌ No permission.', ephemeral: true });
-            const amount = interaction.options.getInteger('amount');
-            await interaction.channel.bulkDelete(Math.min(amount, 100), true);
-            await interaction.reply({ content: `🧹 Cleared **${amount}** messages.`, ephemeral: true });
         }
     }
 ];
