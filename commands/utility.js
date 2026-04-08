@@ -23,51 +23,9 @@ module.exports = [
             const embed = new EmbedBuilder()
                 .setColor('#00FFCC').setTitle('📶 Pong!')
                 .addFields(
-                    { name: 'Bot Latency', value: `${sent.createdTimestamp - i.createdTimestamp}ms`, inline: true },
-                    { name: 'API Latency', value: `${Math.round(i.client.ws.ping)}ms`, inline: true }
+                    { name: 'Bot Latency', value: `${sent.createdTimestamp - i.createdTimestamp}ms`, inline: true }
                 );
             await i.editReply({ content: null, embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('userinfo').setDescription('👤 Get info about a user').addUserOption(o => o.setName('target').setDescription('The user')),
-        async execute(i) {
-            const member = i.options.getMember('target') || i.member;
-            const embed = new EmbedBuilder()
-                .setColor('#BF00FF').setTitle(`👤 ${member.user.username}`)
-                .setThumbnail(member.user.displayAvatarURL())
-                .addFields(
-                    { name: 'ID', value: member.id, inline: true },
-                    { name: 'Joined', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
-                    { name: 'Roles', value: member.roles.cache.map(r => r).join(' ').replace('@everyone', '') || 'None' }
-                );
-            await i.reply({ embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('serverinfo').setDescription('🏰 View server details'),
-        async execute(i) {
-            const embed = new EmbedBuilder()
-                .setColor('#0077FF').setTitle(`🏰 ${i.guild.name}`)
-                .setThumbnail(i.guild.iconURL())
-                .addFields(
-                    { name: 'Members', value: `${i.guild.memberCount}`, inline: true },
-                    { name: 'Boosts', value: `${i.guild.premiumSubscriptionCount || 0}`, inline: true }
-                );
-            await i.reply({ embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('botinfo').setDescription('🤖 Technical stats about ServerForge'),
-        async execute(i) {
-            const embed = new EmbedBuilder()
-                .setColor('#BF00FF').setTitle('🤖 ServerForge Stats')
-                .addFields(
-                    { name: 'Latency', value: `${i.client.ws.ping}ms`, inline: true },
-                    { name: 'Servers', value: `${i.client.guilds.cache.size}`, inline: true },
-                    { name: 'Uptime', value: `${Math.round(i.client.uptime / 60000)}m`, inline: true }
-                );
-            await i.reply({ embeds: [embed] });
         }
     },
     {
@@ -92,8 +50,8 @@ module.exports = [
         async execute(i) {
             if (!i.member.permissions.has(PermissionFlagsBits.ManageMessages)) return i.reply({ content: '❌ No permission.', ephemeral: true });
             const amount = i.options.getInteger('amount');
-            await i.channel.bulkDelete(Math.min(amount, 100));
-            await i.reply({ content: `🧹 Deleted ${amount} messages.`, ephemeral: true });
+            await i.channel.bulkDelete(Math.min(amount, 100), true);
+            await i.reply({ content: `🧹 Cleared **${amount}** messages.`, ephemeral: true });
         }
     }
 ];
