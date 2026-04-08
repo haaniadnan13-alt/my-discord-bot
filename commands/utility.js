@@ -24,7 +24,6 @@ module.exports = [
                 .addFields(
                     { name: 'ID', value: member.id, inline: true },
                     { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
-                    { name: 'Created Account', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
                     { name: 'Roles', value: member.roles.cache.map(r => r).join(' ').replace('@everyone', '') || 'None' }
                 );
             await interaction.reply({ embeds: [embed] });
@@ -39,8 +38,7 @@ module.exports = [
                 .setThumbnail(guild.iconURL())
                 .addFields(
                     { name: 'Members', value: `${guild.memberCount}`, inline: true },
-                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true },
-                    { name: 'Created', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`, inline: true }
+                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true }
                 );
             await interaction.reply({ embeds: [embed] });
         }
@@ -53,56 +51,12 @@ module.exports = [
         }
     },
     {
-        data: new SlashCommandBuilder().setName('roleinfo').setDescription('🏷️ Info about a role').addRoleOption(o => o.setName('role').setDescription('The role').setRequired(true)),
+        data: new SlashCommandBuilder().setName('clear').setDescription('🧹 Delete multiple messages').addIntegerOption(o => o.setName('amount').setDescription('Number of messages (1-100)').setRequired(true).setMinValue(1).setMaxValue(100)),
         async execute(interaction) {
-            const role = interaction.options.getRole('role');
-            const embed = new EmbedBuilder()
-                .setColor(role.hexColor).setTitle(`🏷️ Role: ${role.name}`)
-                .addFields(
-                    { name: 'ID', value: role.id, inline: true },
-                    { name: 'Members', value: `${role.members.size}`, inline: true },
-                    { name: 'Color', value: role.hexColor, inline: true }
-                );
-            await interaction.reply({ embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('botinfo').setDescription('🤖 Stats about this bot'),
-        async execute(interaction) {
-            const embed = new EmbedBuilder()
-                .setColor('#BF00FF').setTitle('🤖 Bot Status')
-                .addFields(
-                    { name: 'Servers', value: `${interaction.client.guilds.cache.size}`, inline: true },
-                    { name: 'Uptime', value: `${Math.round(interaction.client.uptime / 60000)}m`, inline: true },
-                    { name: 'Library', value: 'Discord.js v14', inline: true }
-                );
-            await interaction.reply({ embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('uptime').setDescription('⏱️ How long the bot has been online'),
-        async execute(interaction) {
-            await interaction.reply(`⏱️ **Uptime:** ${Math.round(interaction.client.uptime / 60000)} minutes.`);
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('invite').setDescription('🔗 Get bot invite link'),
-        async execute(interaction) {
-            await interaction.reply({ content: `🔗 **Invite me here:** https://discord.com/api/oauth2/authorize?client_id=${interaction.client.user.id}&permissions=8&scope=bot%20applications.commands`, ephemeral: true });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('feedback').setDescription('📩 Send feedback to developers').addStringOption(o => o.setName('text').setDescription('Your feedback').setRequired(true)),
-        async execute(interaction) {
-            await interaction.reply({ content: '✅ **Feedback sent!** Thanks for your help.', ephemeral: true });
-            console.log(`FEEDBACK from ${interaction.user.tag}: ${interaction.options.getString('text')}`);
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('suggest').setDescription('💡 Create a suggestion').addStringOption(o => o.setName('text').setDescription('Your suggestion').setRequired(true)),
-        async execute(interaction) {
-            const msg = await interaction.reply({ embeds: [new EmbedBuilder().setColor('#0077FF').setTitle('💡 New Suggestion').setDescription(interaction.options.getString('text')).setFooter({ text: `From: ${interaction.user.tag}` })], fetchReply: true });
-            await msg.react('✅'); await msg.react('❌');
+            if (!interaction.member.permissions.has(PermissionFlagsBits.ManageMessages)) return interaction.reply({ content: '❌ No permission!', ephemeral: true });
+            const amount = interaction.options.getInteger('amount');
+            await interaction.channel.bulkDelete(amount);
+            await interaction.reply({ content: `🧹 Deleted ${amount} messages.`, ephemeral: true });
         }
     }
 ];
