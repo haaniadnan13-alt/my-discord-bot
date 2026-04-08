@@ -40,7 +40,7 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
-// 2. DEPLOY COMMANDS TO DISCORD WHEN BOT STARTS
+// 2. DEPLOY & DIAGNOSE COMMANDS
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     const rest = new REST({ version: '10' }).setToken(TOKEN);
@@ -52,7 +52,13 @@ client.once('ready', async () => {
         );
         console.log('✅ Successfully reloaded slash commands!');
     } catch (error) {
-        console.error("❌ Failed to deploy commands:", error);
+        console.error("❌ Failed to deploy commands.");
+        if (error.rawError && error.rawError.errors) {
+            // This shows the exact field (name, description, etc.) causing the error
+            console.dir(error.rawError.errors, { depth: null });
+        } else {
+            console.error(error);
+        }
     }
 });
 
@@ -60,9 +66,11 @@ client.on('messageCreate', async (m) => {
     if (!m.guild || m.author.bot) return;
     const s = global.automodSettings[m.guild.id] || { filter: true, invites: true };
     const content = m.content.toLowerCase();
+    
     if (s.invites && (content.includes('discord.gg/') || content.includes('http'))) {
         return m.delete().catch(() => null);
     }
+    
     if (s.filter && badWordsList.length > 0) {
         if (badWordsList.some(word => content.includes(word.toLowerCase()))) {
             try {
@@ -77,6 +85,7 @@ client.on('messageCreate', async (m) => {
 });
 
 client.on('interactionCreate', async (i) => {
+  // TICKET BUTTON HANDLER
   if (i.isButton() && i.customId === 'create_ticket_btn') {
     const { guild, user } = i;
     try {
@@ -87,7 +96,13 @@ client.on('interactionCreate', async (i) => {
           { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
           {
             id: user.id,
-            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ReadMessageHistory,
+              PermissionFlagsBits.AttachFiles,
+              PermissionFlagsBits.EmbedLinks
+            ]
           },
           {
             id: client.user.id,
@@ -98,13 +113,21 @@ client.on('interactionCreate', async (i) => {
       await ticketChannel.send({ content: `Hello ${user}, a staff member will be with you shortly.` });
       return i.reply({ content: `Ticket created: ${ticketChannel}`, ephemeral: true });
     } catch (err) {
+      console.error(err);
       return i.reply({ content: "❌ Error creating ticket.", ephemeral: true });
     }
   }
 
+  // SLASH COMMAND HANDLER
   if (!i.isChatInputCommand()) return;
   const cmd = client.commands.get(i.commandName);
-  if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
+  if (cmd) {
+    try { 
+        await cmd.execute(i); 
+    } catch (e) { 
+        console.error(e); 
+    }
+  }
 });
 
 client.login(TOKEN);
