@@ -108,3 +108,16 @@ client.on('interactionCreate', async (i) => {
 });
 
 client.login(TOKEN);
+const rest = new REST({ version: '10' }).setToken(TOKEN);
+(async () => {
+    try {
+        console.log('🔄 Refreshing slash commands...');
+        await rest.put(
+            Routes.applicationCommands(CLIENT_ID),
+            { body: allCommandsJson },
+        );
+        console.log('✅ Successfully reloaded slash commands!');
+    } catch (error) {
+        console.error(error);
+    }
+})();
