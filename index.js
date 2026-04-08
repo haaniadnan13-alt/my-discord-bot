@@ -1,7 +1,6 @@
 require('./keep_alive');
 const fs = require('node:fs');
 const path = require('node:path');
-// Added PermissionFlagsBits and ChannelType here
 const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, EmbedBuilder, PermissionFlagsBits, ChannelType } = require('discord.js');
 
 const client = new Client({
@@ -19,12 +18,13 @@ try {
     badWordsList = require('./badwords.js'); 
     console.log(`✅ Loaded ${badWordsList.length} words.`);
 } catch (e) {
-    console.error("⚠️ ERROR: Could not find badwords.js in the main folder!");
+    console.error("⚠️ ERROR: Could not find badwords.js!");
 }
 
 client.commands = new Collection();
 const allCommandsJson = [];
 
+// 1. LOAD COMMANDS FROM FILES
 const commandsPath = path.join(__dirname, 'commands');
 if (fs.existsSync(commandsPath)) {
   const files = fs.readdirSync(commandsPath).filter(f => f.endsWith('.js'));
@@ -40,6 +40,22 @@ if (fs.existsSync(commandsPath)) {
   }
 }
 
+// 2. DEPLOY COMMANDS TO DISCORD WHEN BOT STARTS
+client.once('ready', async () => {
+    console.log(`Logged in as ${client.user.tag}`);
+    const rest = new REST({ version: '10' }).setToken(TOKEN);
+    try {
+        console.log(`🔄 Refreshing ${allCommandsJson.length} slash commands...`);
+        await rest.put(
+            Routes.applicationCommands(CLIENT_ID),
+            { body: allCommandsJson },
+        );
+        console.log('✅ Successfully reloaded slash commands!');
+    } catch (error) {
+        console.error("❌ Failed to deploy commands:", error);
+    }
+});
+
 client.on('messageCreate', async (m) => {
     if (!m.guild || m.author.bot) return;
     const s = global.automodSettings[m.guild.id] || { filter: true, invites: true };
@@ -54,54 +70,38 @@ client.on('messageCreate', async (m) => {
                 const warn = await m.channel.send(`🚫 ${m.author}, watch your language!`);
                 setTimeout(() => warn.delete().catch(() => null), 3000);
             } catch (err) {
-                console.log("Hierarchy error: Bot role must be higher than the user.");
+                console.log("Hierarchy error.");
             }
         }
     }
 });
 
 client.on('interactionCreate', async (i) => {
-  // 🎫 NEW: ADVANCED TICKET BUTTON HANDLER
   if (i.isButton() && i.customId === 'create_ticket_btn') {
     const { guild, user } = i;
-    
     try {
-      // Creates channel at the absolute TOP of the server
       const ticketChannel = await guild.channels.create({
         name: `🎫-${user.username}`,
         type: ChannelType.GuildText,
-        position: 0, 
         permissionOverwrites: [
+          { id: guild.id, deny: [PermissionFlagsBits.ViewChannel] },
           {
-            id: guild.id, // @everyone
-            deny: [PermissionFlagsBits.ViewChannel],
+            id: user.id,
+            allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ReadMessageHistory]
           },
           {
-            id: user.id, // Ticket Creator
-            allow: [
-              PermissionFlagsBits.ViewChannel,
-              PermissionFlagsBits.SendMessages,
-              PermissionFlagsBits.ReadMessageHistory,
-              PermissionFlagsBits.AttachFiles,
-              PermissionFlagsBits.EmbedLinks
-            ],
-          },
-          {
-            id: client.user.id, // The Bot
+            id: client.user.id,
             allow: [PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages]
           }
         ],
       });
-
-      await ticketChannel.send({ content: `Hello, your support ticket has been created. Please explain your issue in detail. A staff member will assist you shortly.` });
+      await ticketChannel.send({ content: `Hello ${user}, a staff member will be with you shortly.` });
       return i.reply({ content: `Ticket created: ${ticketChannel}`, ephemeral: true });
     } catch (err) {
-      console.error(err);
-      return i.reply({ content: "❌ Error creating ticket. Check my permissions!", ephemeral: true });
+      return i.reply({ content: "❌ Error creating ticket.", ephemeral: true });
     }
   }
 
-  // EXISTING: SLASH COMMAND HANDLER
   if (!i.isChatInputCommand()) return;
   const cmd = client.commands.get(i.commandName);
   if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
