@@ -8,10 +8,10 @@ module.exports = [
     {
         data: new SlashCommandBuilder().setName('automod').setDescription('🛡️ Configure AutoMod')
             .addSubcommand(s => s.setName('toggle').setDescription('Enable/Disable filters')
-                .addStringOption(o => o.setName('type').setDescription('Filter').setRequired(true).addChoices({name:'Bad Words', value:'filter'}, {name:'Links', value:'links'}, {name:'Spam', value:'spam'}))
+                .addStringOption(o => o.setName('type').setDescription('Filter').setRequired(true).addChoices({name:'Bad Words', value:'filter'}, {name:'Links', value:'links'}, {name:'Spam', value:'spam'}, {name:'Self-Test (Affect Me)', value:'selfTest'}))
                 .addBooleanOption(o => o.setName('status').setDescription('Status').setRequired(true)))
             .addSubcommand(s => s.setName('bypass').setDescription('Set role bypass')
-                .addRoleOption(o => o.setName('role').setDescription('Role to bypass filters').setRequired(true))
+                .addRoleOption(o => o.setName('role').setDescription('Role to bypass').setRequired(true))
                 .addBooleanOption(o => o.setName('status').setDescription('Bypass status').setRequired(true))),
         async execute(i) {
             if (!i.member.permissions.has(PermissionFlagsBits.Administrator)) return i.reply({ content: '❌ Admin only!', ephemeral: true });
@@ -35,7 +35,11 @@ module.exports = [
         async execute(m) {
             if (!m.guild || m.author.bot) return;
             const s = global.automodSettings[m.guild.id] || { bypassRoles: [] };
-            if (m.member.permissions.has(PermissionFlagsBits.Administrator) || m.member.roles.cache.some(r => s.bypassRoles.includes(r.id))) return;
+            
+            // BYPASS LOGIC: Only skip if NOT in selfTest mode
+            if (!s.selfTest) {
+                if (m.member.permissions.has(PermissionFlagsBits.Administrator) || m.member.roles.cache.some(r => s.bypassRoles.includes(r.id))) return;
+            }
 
             const del = async (txt) => { await m.delete().catch(() => null); m.channel.send(`🚫 ${m.author}, ${txt}`).then(msg => setTimeout(() => msg.delete(), 3000)); };
 
