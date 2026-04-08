@@ -1,67 +1,32 @@
-const { SlashCommandBuilder, EmbedBuilder, PermissionFlagsBits } = require('discord.js');
-
-module.exports = [
     {
-        data: new SlashCommandBuilder().setName('ping').setDescription('📶 Check bot and API latency'),
-        async execute(interaction) {
-            const sent = await interaction.reply({ content: 'Pinging...', fetchReply: true, ephemeral: true });
+        data: new SlashCommandBuilder().setName('help').setDescription('📜 View all available commands'),
+        async execute(i) {
             const embed = new EmbedBuilder()
-                .setColor('#00FFCC').setTitle('📶 Pong!')
+                .setColor('#00FFCC')
+                .setTitle('⚡ ServerForge Command Menu')
+                .setDescription('Use the categories below to explore my 151+ commands.')
                 .addFields(
-                    { name: 'Bot Latency', value: `${sent.createdTimestamp - interaction.createdTimestamp}ms`, inline: true },
-                    { name: 'API Latency', value: `${Math.round(interaction.client.ws.ping)}ms`, inline: true }
-                );
-            await interaction.editReply({ content: null, embeds: [embed] });
+                    { name: '🛠️ Utility', value: '`/ping`, `/uptime`, `/invite`, `/help`', inline: true },
+                    { name: '👤 Information', value: '`/userinfo`, `/serverinfo`, `/avatar`, `/botinfo`', inline: true },
+                    { name: '🧹 Moderation', value: '`/clear`, `/kick`, `/ban`', inline: true },
+                    { name: '💡 Feedback', value: '`/suggest` (Send ideas to dev!)', inline: true }
+                )
+                .setFooter({ text: 'More commands coming every week!' });
+            await i.reply({ embeds: [embed] });
         }
     },
     {
-        data: new SlashCommandBuilder().setName('userinfo').setDescription('👤 Get info about a user').addUserOption(o => o.setName('target').setDescription('The user')),
-        async execute(interaction) {
-            const member = interaction.options.getMember('target') || interaction.member;
+        data: new SlashCommandBuilder().setName('botinfo').setDescription('🤖 Technical stats about ServerForge'),
+        async execute(i) {
             const embed = new EmbedBuilder()
-                .setColor('#BF00FF').setTitle(`👤 ${member.user.username} Info`)
-                .setThumbnail(member.user.displayAvatarURL())
+                .setColor('#BF00FF')
+                .setTitle('🤖 ServerForge Statistics')
                 .addFields(
-                    { name: 'ID', value: member.id, inline: true },
-                    { name: 'Joined Server', value: `<t:${Math.floor(member.joinedTimestamp / 1000)}:R>`, inline: true },
-                    { name: 'Created Account', value: `<t:${Math.floor(member.user.createdTimestamp / 1000)}:R>`, inline: true },
-                    { name: 'Roles', value: member.roles.cache.map(r => r).join(' ').replace('@everyone', '') || 'None' }
+                    { name: 'Latency', value: `${i.client.ws.ping}ms`, inline: true },
+                    { name: 'Servers', value: `${i.client.guilds.cache.size}`, inline: true },
+                    { name: 'Version', value: 'v2.0.4 (Stable)', inline: true },
+                    { name: 'Platform', value: 'Node.js v20', inline: true }
                 );
-            await interaction.reply({ embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('serverinfo').setDescription('🏰 View server details'),
-        async execute(interaction) {
-            const { guild } = interaction;
-            const embed = new EmbedBuilder()
-                .setColor('#0077FF').setTitle(`🏰 ${guild.name}`)
-                .setThumbnail(guild.iconURL())
-                .addFields(
-                    { name: 'Members', value: `${guild.memberCount}`, inline: true },
-                    { name: 'Boosts', value: `${guild.premiumSubscriptionCount}`, inline: true },
-                    { name: 'Created', value: `<t:${Math.floor(guild.createdTimestamp / 1000)}:F>`, inline: true }
-                );
-            await interaction.reply({ embeds: [embed] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('avatar').setDescription('🖼️ Get user avatar').addUserOption(o => o.setName('target').setDescription('The user')),
-        async execute(interaction) {
-            const user = interaction.options.getUser('target') || interaction.user;
-            await interaction.reply({ embeds: [new EmbedBuilder().setColor('#00FFCC').setTitle(`${user.username}'s Avatar`).setImage(user.displayAvatarURL({ size: 1024, dynamic: true }))] });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('invite').setDescription('🔗 Get bot invite link'),
-        async execute(interaction) {
-            await interaction.reply({ content: `🔗 **Invite me here:** https://discord.com/api/oauth2/authorize?client_id=${interaction.client.user.id}&permissions=8&scope=bot%20applications.commands`, ephemeral: true });
-        }
-    },
-    {
-        data: new SlashCommandBuilder().setName('uptime').setDescription('⏱️ How long the bot has been online'),
-        async execute(interaction) {
-            await interaction.reply(`⏱️ **Uptime:** ${Math.round(interaction.client.uptime / 60000)} minutes.`);
+            await i.reply({ embeds: [embed] });
         }
     }
-];
