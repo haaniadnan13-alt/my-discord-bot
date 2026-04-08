@@ -24,21 +24,5 @@ module.exports = [
             const sub = interaction.options.getSubcommand();
             await interaction.reply({ content: `✅ Goodbye ${sub === 'setchannel' ? 'channel' : 'message'} has been updated!`, ephemeral: true });
         }
-    },
-    {
-        data: new SlashCommandBuilder()
-            .setName('autorole')
-            .setDescription('🤖 Automatically assign a role to new members')
-            .addRoleOption(o => o.setName('role').setDescription('The role').setRequired(true))
-            .addStringOption(o => o.setName('status').setDescription('On or Off').setRequired(true).addChoices(
-                { name: 'On', value: 'on' },
-                { name: 'Off', value: 'off' }
-            )),
-        async execute(interaction) {
-            if (!interaction.member.permissions.has(PermissionFlagsBits.Administrator)) return interaction.reply({ content: '❌ Admin only!', ephemeral: true });
-            const role = interaction.options.getRole('role');
-            const status = interaction.options.getString('status');
-            await interaction.reply(`🤖 Autorole for **${role.name}** is now **${status.toUpperCase()}**.`);
-        }
     }
 ];
