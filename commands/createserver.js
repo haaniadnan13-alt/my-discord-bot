@@ -5,15 +5,8 @@ module.exports = {
     data: new SlashCommandBuilder()
         .setName('createserver')
         .setDescription('🛠️ Build a professional gaming server with precise permissions')
-        .addStringOption(o => o.setName('game').setDescription('Select template').setRequired(true)
-            .addChoices(
-                { name: 'Rocket League', value: 'rl' },
-                { name: 'Minecraft', value: 'mc' },
-                { name: 'COD', value: 'cod' },
-                { name: 'Apex', value: 'apex' },
-                { name: 'Roblox', value: 'roblox' },
-                { name: 'Roblox Rivals', value: 'rivals' }
-            ))
+        // Removed .addChoices so "support" isn't blocked by Discord's UI
+        .addStringOption(o => o.setName('game').setDescription('Select template (rl, mc, cod, apex, roblox, rivals)').setRequired(true))
         .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
 
     async execute(interaction) {
@@ -32,7 +25,7 @@ module.exports = {
 
         // --- STANDARD TEMPLATE LOGIC ---
         const data = templates[game];
-        if (!data) return interaction.reply({ content: '❌ Template data missing.', ephemeral: true });
+        if (!data) return interaction.reply({ content: '❌ Invalid template. Enter: rl, mc, cod, apex, roblox, or rivals.', ephemeral: true });
 
         await interaction.reply({ content: `🚀 Assembling **${game.toUpperCase()}** template...`, ephemeral: true });
 
@@ -95,7 +88,16 @@ module.exports = {
 
 // --- PRIVATE SUPPORT BUILDER FUNCTION ---
 async function buildSupport(interaction, guild) {
+    // 1. Paste your direct image link here for the ServerForge icon
+    const serverIconUrl = 'YOUR_IMAGE_LINK_HERE';
+
     try {
+        // Update Server Identity
+        await guild.setName('ServerForge Support');
+        if (serverIconUrl.startsWith('http')) {
+            await guild.setIcon(serverIconUrl).catch(e => console.log("Icon upload failed, link might be invalid."));
+        }
+
         const roles = [
             { n: '👑 OWNER', c: '#8B0000', p: [PermissionFlagsBits.Administrator] },
             { n: '🛠️ ADMIN', c: '#FF0000', p: [PermissionFlagsBits.Administrator] },
@@ -118,10 +120,13 @@ async function buildSupport(interaction, guild) {
             const category = await guild.channels.create({ name: s.cat, type: ChannelType.GuildCategory });
             for (const ch of s.channels) {
                 const channel = await guild.channels.create({ name: ch.n, type: ChannelType.GuildText, parent: category.id });
+                
                 const embed = new EmbedBuilder()
                     .setTitle(ch.n.toUpperCase())
-                    .setDescription(`**Description:** ${ch.d}`)
-                    .setColor('#8B0000');
+                    .setDescription(`**Description:** ${ch.d}\n\n*Automated ServerForge Setup*`)
+                    .setColor('#8B0000')
+                    .setTimestamp();
+
                 await channel.send({ embeds: [embed] });
             }
         }
@@ -132,6 +137,7 @@ async function buildSupport(interaction, guild) {
 
         return interaction.followUp('✅ **SUPPORT SERVER DEPLOYED.**');
     } catch (e) {
+        console.error(e);
         return interaction.followUp('❌ Deployment failed.');
     }
 }
