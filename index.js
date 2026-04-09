@@ -8,7 +8,9 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMembers, 
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildPresences,
+    GatewayIntentBits.GuildVoiceStates
   ],
   partials: [Partials.Channel, Partials.Message, Partials.Reaction]
 });
@@ -20,7 +22,7 @@ const GUILD_ID = '1491407568092790784';
 client.commands = new Collection();
 const allCommandsJson = [];
 
-// FIXED LOADER: Matches your original logic to find every file
+// 1. DYNAMIC LOADER (Finds every file in your commands folder)
 const commandsPath = path.join(__dirname, 'commands');
 function loadCommands(dir) {
     if (!fs.existsSync(dir)) return;
@@ -31,7 +33,6 @@ function loadCommands(dir) {
             loadCommands(filePath);
         } else if (file.endsWith('.js')) {
             const imported = require(filePath);
-            // Handle both single objects and arrays of commands
             const commandList = Array.isArray(imported) ? imported : [imported];
             for (const cmd of commandList) {
                 if (cmd.data && cmd.execute) {
@@ -44,9 +45,13 @@ function loadCommands(dir) {
 }
 loadCommands(commandsPath);
 
+// 2. INTERACTION HANDLER (Buttons & Commands)
 client.on('interactionCreate', async i => {
     if (i.isButton()) {
+        // Stop the "thinking" timeout immediately
         await i.deferReply({ ephemeral: true });
+
+        // VERIFY BUTTON
         if (i.customId.startsWith('verify_button_')) {
             const roleId = i.customId.replace('verify_button_', '');
             const role = i.guild.roles.cache.get(roleId);
@@ -54,8 +59,12 @@ client.on('interactionCreate', async i => {
             try {
                 await i.member.roles.add(role);
                 return i.editReply("✅ Verified!");
-            } catch (e) { return i.editReply("❌ Move bot role HIGHER."); }
+            } catch (e) {
+                return i.editReply("❌ Bot role must be ABOVE the target role.");
+            }
         }
+
+        // TICKET BUTTON
         if (i.customId === 'open_ticket') {
             try {
                 const ch = await i.guild.channels.create({
@@ -67,24 +76,33 @@ client.on('interactionCreate', async i => {
                     ],
                 });
                 return i.editReply(`Ticket: ${ch}`);
-            } catch (e) { return i.editReply("❌ Error."); }
+            } catch (e) { return i.editReply("❌ Error creating ticket."); }
         }
     }
 
+    // SLASH COMMAND HANDLER
     if (!i.isChatInputCommand()) return;
     const cmd = client.commands.get(i.commandName);
-    if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
+    if (cmd) {
+        try { 
+            await cmd.execute(i); 
+        } catch (e) { 
+            console.error(e);
+            if (!i.replied && !i.deferred) await i.reply({ content: 'Error.', ephemeral: true });
+        }
+    }
 });
 
+// 3. READY & SYNC (Wipes duplicates and loads all commands)
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
-        // Clear Guild duplicates
+        // Clear local Guild duplicates
         await rest.put(Routes.applicationGuildCommands(CLIENT_ID, GUILD_ID), { body: [] });
-        // Register everything found in the folders
+        // Register everything Global
         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-        console.log(`✅ Loaded ${allCommandsJson.length} commands.`);
+        console.log(`✅ ${allCommandsJson.length} commands loaded.`);
     } catch (e) { console.error(e); }
 });
 
