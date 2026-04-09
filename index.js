@@ -4,14 +4,7 @@ const path = require('node:path');
 const { Client, GatewayIntentBits, Partials, REST, Routes, Collection, PermissionFlagsBits, ChannelType } = require('discord.js');
 
 const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMembers, 
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-    GatewayIntentBits.GuildPresences,
-    GatewayIntentBits.GuildVoiceStates
-  ],
+  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
   partials: [Partials.Channel, Partials.Message, Partials.Reaction]
 });
 
@@ -32,8 +25,8 @@ function loadCommands(dir) {
             loadCommands(filePath);
         } else if (file.endsWith('.js')) {
             const imported = require(filePath);
-            const commandList = Array.isArray(imported) ? imported : [imported];
-            for (const cmd of commandList) {
+            const list = Array.isArray(imported) ? imported : [imported];
+            for (const cmd of list) {
                 if (cmd.data && cmd.execute) {
                     client.commands.set(cmd.data.name, cmd);
                     allCommandsJson.push(cmd.data.toJSON());
@@ -46,13 +39,12 @@ loadCommands(commandsPath);
 
 client.on('interactionCreate', async i => {
     if (i.isButton()) {
-        await i.deferReply({ ephemeral: true });
+        await i.deferReply({ ephemeral: true }); 
 
         if (i.customId.startsWith('verify_button_')) {
-            const roleId = i.customId.replace('verify_button_', '');
-            const role = i.guild.roles.cache.get(roleId);
-            if (!role) return i.editReply("❌ Role not found.");
+            const role = i.guild.roles.cache.get(i.customId.replace('verify_button_', ''));
             try {
+                if (!role) return i.editReply("❌ Role missing.");
                 await i.member.roles.add(role);
                 return i.editReply("✅ Verified!");
             } catch (e) { return i.editReply("❌ Bot role too low."); }
@@ -80,23 +72,18 @@ client.on('interactionCreate', async i => {
     }
 
     const cmd = client.commands.get(i.commandName);
-    if (cmd) {
-        try { await cmd.execute(i); } 
-        catch (e) { console.error(e); }
-    }
+    if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
 });
 
 client.once('ready', async () => {
-    console.log(`Logged in as ${client.user.tag}`);
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
         const guilds = await client.guilds.fetch();
         for (const [guildId] of guilds) {
             await rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId), { body: [] });
         }
-
         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-        console.log(`✅ All local duplicates wiped. Registered ${allCommandsJson.length} global commands.`);
+        console.log(`✅ Duplicates wiped. Global list updated.`);
     } catch (e) { console.error(e); }
 });
 
