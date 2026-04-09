@@ -15,6 +15,7 @@ const MY_SERVER = '1491407568092790784';
 client.commands = new Collection();
 const allCommandsJson = [];
 
+// 1. DYNAMIC LOADER WITH DUPLICATE CHECK
 const commandsPath = path.join(__dirname, 'commands');
 function loadCommands(dir) {
     if (!fs.existsSync(dir)) return;
@@ -28,6 +29,13 @@ function loadCommands(dir) {
             const list = Array.isArray(imported) ? imported : [imported];
             for (const cmd of list) {
                 if (cmd.data && cmd.execute) {
+                    // LOGS EVERY COMMAND LOADED
+                    console.log(`[LOADER] Found command /${cmd.data.name} in file: ${file}`);
+                    
+                    if (client.commands.has(cmd.data.name)) {
+                        console.log(`⚠️ WARNING: Duplicate command /${cmd.data.name} found in ${file}!`);
+                    }
+                    
                     client.commands.set(cmd.data.name, cmd);
                     allCommandsJson.push(cmd.data.toJSON());
                 }
@@ -40,7 +48,6 @@ loadCommands(commandsPath);
 client.on('interactionCreate', async i => {
     if (i.isButton()) {
         await i.deferReply({ ephemeral: true }); 
-
         if (i.customId.startsWith('verify_button_')) {
             const role = i.guild.roles.cache.get(i.customId.replace('verify_button_', ''));
             try {
@@ -49,7 +56,6 @@ client.on('interactionCreate', async i => {
                 return i.editReply("✅ Verified!");
             } catch (e) { return i.editReply("❌ Bot role too low."); }
         }
-
         if (i.customId === 'open_ticket') {
             try {
                 const ch = await i.guild.channels.create({
@@ -66,11 +72,9 @@ client.on('interactionCreate', async i => {
     }
 
     if (!i.isChatInputCommand()) return;
-
     if (i.commandName === 'createserver' && i.options.getString('template') === 'support' && i.guildId !== MY_SERVER) {
         return i.reply({ content: "❌ Private template.", ephemeral: true });
     }
-
     const cmd = client.commands.get(i.commandName);
     if (cmd) try { await cmd.execute(i); } catch (e) { console.error(e); }
 });
@@ -78,12 +82,18 @@ client.on('interactionCreate', async i => {
 client.once('ready', async () => {
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
+        // WIPE EVERYTHING FIRST
+        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: [] });
         const guilds = await client.guilds.fetch();
         for (const [guildId] of guilds) {
             await rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId), { body: [] });
         }
-        await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-        console.log(`✅ Duplicates wiped. Global list updated.`);
+        
+        // LOAD FRESH GLOBAL
+        setTimeout(async () => {
+            await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
+            console.log(`✅ Clean sync: ${allCommandsJson.length} commands.`);
+        }, 5000);
     } catch (e) { console.error(e); }
 });
 
