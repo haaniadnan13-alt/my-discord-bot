@@ -17,12 +17,11 @@ const client = new Client({
 
 const TOKEN = process.env.TOKEN;
 const CLIENT_ID = '1489497753523327047';
-const MY_GUILD_ID = '1491407568092790784'; // Keep this for the private lock
+const MY_SERVER = '1491407568092790784'; 
 
 client.commands = new Collection();
 const allCommandsJson = [];
 
-// 1. DYNAMIC LOADER
 const commandsPath = path.join(__dirname, 'commands');
 function loadCommands(dir) {
     if (!fs.existsSync(dir)) return;
@@ -45,7 +44,6 @@ function loadCommands(dir) {
 }
 loadCommands(commandsPath);
 
-// 2. INTERACTION HANDLER
 client.on('interactionCreate', async i => {
     if (i.isButton()) {
         await i.deferReply({ ephemeral: true });
@@ -57,9 +55,7 @@ client.on('interactionCreate', async i => {
             try {
                 await i.member.roles.add(role);
                 return i.editReply("✅ Verified!");
-            } catch (e) {
-                return i.editReply("❌ Bot role must be HIGHER than the target role.");
-            }
+            } catch (e) { return i.editReply("❌ Bot role too low."); }
         }
 
         if (i.customId === 'open_ticket') {
@@ -73,42 +69,34 @@ client.on('interactionCreate', async i => {
                     ],
                 });
                 return i.editReply(`Ticket: ${ch}`);
-            } catch (e) { return i.editReply("❌ Error creating ticket."); }
+            } catch (e) { return i.editReply("❌ Error."); }
         }
     }
 
     if (!i.isChatInputCommand()) return;
 
-    // PRIVATE LOCK: Only you can use the support template
-    if (i.commandName === 'createserver' && i.options.getString('template') === 'support' && i.guildId !== MY_GUILD_ID) {
-        return i.reply({ content: "❌ The 'support' template is private to the developer.", ephemeral: true });
+    if (i.commandName === 'createserver' && i.options.getString('template') === 'support' && i.guildId !== MY_SERVER) {
+        return i.reply({ content: "❌ Private template.", ephemeral: true });
     }
 
     const cmd = client.commands.get(i.commandName);
     if (cmd) {
-        try { 
-            await cmd.execute(i); 
-        } catch (e) { 
-            console.error(e);
-            if (!i.replied && !i.deferred) await i.reply({ content: 'Error.', ephemeral: true });
-        }
+        try { await cmd.execute(i); } 
+        catch (e) { console.error(e); }
     }
 });
 
-// 3. READY & GLOBAL SYNC
 client.once('ready', async () => {
     console.log(`Logged in as ${client.user.tag}`);
     const rest = new REST({ version: '10' }).setToken(TOKEN);
     try {
-        // DELETE local commands from every server to fix the double icons in your image
         const guilds = await client.guilds.fetch();
         for (const [guildId] of guilds) {
             await rest.put(Routes.applicationGuildCommands(CLIENT_ID, guildId), { body: [] });
         }
 
-        // REGISTER everything as Global
         await rest.put(Routes.applicationCommands(CLIENT_ID), { body: allCommandsJson });
-        console.log(`✅ Duplicates cleared. All commands registered globally.`);
+        console.log(`✅ All local duplicates wiped. Registered ${allCommandsJson.length} global commands.`);
     } catch (e) { console.error(e); }
 });
 
